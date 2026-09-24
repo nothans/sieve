@@ -1,0 +1,68 @@
+{
+  "name": "Aesop's Fables",
+  "tagline": "313 public-domain fables. Ask them anything.",
+  "root": ".",
+  "sources": [
+    {
+      "kind": "fable",
+      "display": "fables",
+      "glob": "fables.md",
+      "split": { "heading": 2 },
+      "maxChars": 2400
+    }
+  ],
+  "gitDates": false,
+  "lenses": {
+    "moral": {
+      "type": "choice",
+      "label": "Moral",
+      "hint": "Which lesson the fable mainly teaches.",
+      "question": "What is the main lesson of {item}?",
+      "options": {
+        "greed": "Greed or wanting more than you need leads to loss.",
+        "vanity": "Pride, boasting, or vanity brings a fall.",
+        "flattery": "Beware of flatterers; flattery is used to get something from you.",
+        "cunning": "Cleverness or trickery beats strength.",
+        "kindness": "Kindness or mercy is repaid, even by the small.",
+        "foresight": "Plan ahead and prepare; foresight and hard work pay off.",
+        "tyranny": "The powerful oppress the weak and will always find an excuse.",
+        "envy": "Envy or jealousy harms the one who feels it.",
+        "unity": "Unity, loyalty, or friendship gives strength.",
+        "none": "None of these lessons; something else."
+      }
+    },
+    "harsh": {
+      "type": "score",
+      "label": "Harshness",
+      "hint": "How badly things end for the main character.",
+      "question": "How harshly does {item} end for its main character?",
+      "levels": [
+        "It ends well for them.",
+        "They learn a lesson without real harm.",
+        "They suffer a painful loss or humiliation.",
+        "They die or are ruined."
+      ]
+    },
+    "bedtime": {
+      "type": "noul",
+      "label": "Bedtime-safe",
+      "hint": "Whether it suits a five-year-old at bedtime.",
+      "question": "Is {item} a gentle story suitable to read to a five-year-old at bedtime?",
+      "true": "No death, cruelty, or frightening violence; a gentle lesson.",
+      "false": "Contains death, being eaten, cruelty, or frightening violence."
+    }
+  },
+  "presets": [
+    { "id": "ask" },
+    { "id": "moral", "lens": "moral", "title": "Moral", "group": true, "hint": "Files every fable under its main lesson, ranked by Jev's confidence. Filter by lesson with the counts above the list." },
+    { "id": "harsh", "lens": "harsh", "title": "Harshness", "hint": "Scores each fable on a four-step scale, from 'ends well' to 'death or ruin'." },
+    { "id": "bedtime", "lens": "bedtime", "title": "Bedtime-safe", "hint": "Asks of each fable: gentle enough for a five-year-old at bedtime?" }
+  ],
+  "examples": [
+    "a clever animal outwits a stronger one",
+    "someone is punished for being greedy",
+    "the gods or Jupiter intervene",
+    "a trick that backfires on the trickster",
+    "friendship between unlikely animals"
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "name": "Sample research notes",
+  "tagline": "A synthetic research notebook: briefs, news digests, and insight logs.",
+  "root": "notes",
+  "gitDates": false,
+  "sources": [
+    {
+      "kind": "brief",
+      "display": "briefs",
+      "glob": "briefs/*.md",
+      "text": "gist",
+      "gist": ["tl;?dr", "implications"],
+      "dateFrom": ["field", "filename"]
+    },
+    {
+      "kind": "news",
+      "display": "news",
+      "glob": "news/*.md",
+      "split": { "heading": 3, "requireBody": true },
+      "maxChars": 1600,
+      "dateFrom": ["title", "filename"]
+    },
+    {
+      "kind": "insight",
+      "display": "insights",
+      "glob": "insights/*.md",
+      "split": { "heading": 2, "requireDate": true, "stripDate": true },
+      "dateFrom": ["title"],
+      "label": "filename"
+    }
+  ],
+  "lenses": {
+    "theme": {
+      "type": "choice",
+      "label": "Theme",
+      "hint": "Which of the notebook's four themes an item belongs to.",
+      "question": "Which theme is {item} mainly about?",
+      "options": {
+        "edge-ai": "Running models on small, local, or battery-powered hardware instead of the cloud.",
+        "developer-experience": "How developers learn and use APIs, SDKs, docs, and tools: onboarding, errors, breaking changes.",
+        "open-source": "Open-source projects and the people who maintain them: funding, burnout, governance, licensing.",
+        "ai-safety": "Risks from AI systems and agents: security, misuse, evaluation, calibration, and keeping humans in control.",
+        "none": "None of these themes; something else."
+      }
+    },
+    "demo": {
+      "type": "noul",
+      "label": "Live-demo ready",
+      "hint": "Whether it describes something you could show working on stage.",
+      "question": "Does {item} describe a working build or tool that could be demonstrated live to an audience?",
+      "true": "A concrete, runnable thing: hardware, software, or a tool someone could show working.",
+      "false": "Analysis, opinion, survey results, or news without something to show."
+    },
+    "strength": {
+      "type": "score",
+      "label": "Evidence",
+      "hint": "How well the item backs up its main claim.",
+      "question": "How well does {item} support its main claim with evidence?",
+      "levels": [
+        "An opinion or prediction with no evidence.",
+        "An anecdote or a single example.",
+        "Measured results from one study, survey, or experiment.",
+        "Several independent sources or results that agree."
+      ]
+    }
+  },
+  "presets": [
+    { "id": "ask" },
+    { "id": "theme", "lens": "theme", "title": "Theme", "group": true, "hint": "Files every item under one of the four themes, ranked by Jev's confidence." },
+    { "id": "demo", "lens": "demo", "title": "Live-demo ready", "hint": "Asks of each item: is there a working thing here you could show on stage?" },
+    { "id": "strength", "lens": "strength", "title": "Evidence", "hint": "Scores each item on how well it backs up its main claim, from opinion to several agreeing sources." }
+  ],
+  "examples": [
+    "security risks of AI agents",
+    "evidence that open-source funding is broken",
+    "anything about calibration or uncertainty",
+    "hardware small enough to fit in a pocket"
+  ],
+  "route": {
+    "title": "Sample routing report",
+    "reportsDir": "reports",
+    "lenses": { "theme": "theme" },
+    "category": "theme",
+    "confident": 0.8,
+    "noneLabel": "No theme",
+    "orphans": { "kinds": ["brief"], "linkFiles": ["index.md", "insights/*.md"] },
+    "secondLooks": { "kinds": ["insight"], "min": 0.9 }
+  },
+  "eval": {
+    "lens": "theme",
+    "kinds": ["insight"],
+    "n": 20
+  }
+}

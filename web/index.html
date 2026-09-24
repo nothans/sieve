@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sieve</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231585b5'/%3E%3Cg fill='%23f4f8fb'%3E%3Ccircle cx='10' cy='11' r='2'/%3E%3Ccircle cx='16' cy='11' r='2'/%3E%3Ccircle cx='22' cy='11' r='2'/%3E%3Ccircle cx='13' cy='17' r='2'/%3E%3Ccircle cx='19' cy='17' r='2'/%3E%3Ccircle cx='16' cy='23' r='2'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxygen:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* Identity: NotHans Blue on tinted charcoal (dark) or cool gray (light). Operate mode:
+     one accent for the primary action, the current selection, and the value bars. */
+  :root {
+    --bg: #f3f5f8; --surface: #fbfcfd; --line: #d9dee5; --line-strong: #bcc4ce;
+    --text: #1b1f24; --muted: #56606b; --faint: #7a848f;
+    --accent: #1585b5; --accent-text: #0e6a93; --accent-weak: #e2eff6; --on-accent: #fbfcfd;
+    --warn: #9a5a12; --error: #a3291d; --error-weak: #fbe9e7;
+    --bar-track: #e6eaef;
+    --shadow: 0 6px 24px -12px rgba(20, 40, 60, .25);
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    --display: 'Oxygen', system-ui, sans-serif;
+    --body: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1e2124; --surface: #25292d; --line: #353a40; --line-strong: #4a5058;
+      --text: #e7eaed; --muted: #a2abb5; --faint: #7f8893;
+      --accent: #1585b5; --accent-text: #5fb2dd; --accent-weak: #1f3542; --on-accent: #f4f8fb;
+      --warn: #e0a15a; --error: #f08a7e; --error-weak: #3a2524;
+      --bar-track: #30353b;
+      --shadow: 0 8px 28px -14px rgba(0, 0, 0, .6);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1e2124; --surface: #25292d; --line: #353a40; --line-strong: #4a5058;
+    --text: #e7eaed; --muted: #a2abb5; --faint: #7f8893;
+    --accent: #1585b5; --accent-text: #5fb2dd; --accent-weak: #1f3542; --on-accent: #f4f8fb;
+    --warn: #e0a15a; --error: #f08a7e; --error-weak: #3a2524;
+    --bar-track: #30353b;
+    --shadow: 0 8px 28px -14px rgba(0, 0, 0, .6);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 var(--body); }
+  a { color: var(--accent-text); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  header.top { border-bottom: 1px solid var(--line); background: var(--surface); }
+  header.top .wrap { display: flex; align-items: baseline; gap: 16px; padding-top: 16px; padding-bottom: 14px; flex-wrap: wrap; }
+  .mark { font: 700 22px/1 var(--display); letter-spacing: -.01em; margin: 0; }
+  .mark span { color: var(--accent-text); }
+  .tagline { color: var(--muted); font-size: 14px; margin: 0; }
+  .meta { margin-left: auto; color: var(--faint); font-size: 13px; font-family: var(--mono); }
+  .theme-toggle { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; font: 13px var(--body); padding: 4px 10px; cursor: pointer; }
+  .theme-toggle:hover { color: var(--text); border-color: var(--line-strong); }
+
+  main { padding: 32px 0 80px; }
+
+  /* Query panel */
+  .modes { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .mode { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); font: 600 14px var(--body); padding: 8px 12px 10px; cursor: pointer; margin-bottom: -1px; }
+  .mode:hover { color: var(--text); }
+  .mode[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  .ask-row { display: flex; gap: 8px; }
+  .ask-row input[type=text] { flex: 1; min-width: 0; font: 18px/1.3 var(--body); padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--text); }
+  .ask-row input[type=text]::placeholder { color: var(--faint); }
+  .ask-row input[type=text]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+  .go { font: 700 16px var(--body); padding: 12px 22px; border-radius: 10px; border: 0; background: var(--accent); color: var(--on-accent); cursor: pointer; transition: background-color .15s var(--ease); }
+  .go:hover { background: #106f98; }
+  .go:active { transform: translateY(1px); }
+  .go:disabled { background: var(--line-strong); color: var(--muted); cursor: not-allowed; transform: none; }
+  .mode-help { color: var(--muted); font-size: 14px; margin: 10px 2px 0; max-width: 72ch; }
+
+  .filters { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; margin-top: 18px; }
+  .filters > div { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 0; }
+  .field-label { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); margin-right: 8px; }
+  .chips { display: inline-flex; flex-wrap: wrap; gap: 6px; vertical-align: middle; }
+  .chip { font: 13px var(--body); border: 1px solid var(--line); background: var(--surface); color: var(--muted); padding: 3px 10px; border-radius: 999px; cursor: pointer; }
+  .chip:hover { border-color: var(--line-strong); color: var(--text); }
+  .chip[aria-pressed="true"] { background: var(--accent-weak); border-color: var(--accent); color: var(--text); }
+  .chip .n { font-family: var(--mono); font-size: 11px; color: var(--faint); margin-left: 4px; }
+  select { font: 14px var(--body); padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); color: var(--text); }
+  .answer-as { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .answer-as button { font: 13px var(--body); border: 0; background: var(--surface); color: var(--muted); padding: 5px 12px; cursor: pointer; }
+  .answer-as button + button { border-left: 1px solid var(--line); }
+  .answer-as button[aria-pressed="true"] { background: var(--accent-weak); color: var(--text); }
+
+  /* Status */
+  .status { margin-top: 32px; display: grid; gap: 8px; }
+  .status-line { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
+  .status-line strong { color: var(--text); font-weight: 600; }
+  .stats { font-family: var(--mono); font-size: 13px; }
+  .progress { height: 4px; background: var(--bar-track); border-radius: 2px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s var(--ease); }
+  .notice { padding: 12px 14px; border-radius: 10px; background: var(--error-weak); color: var(--error); font-size: 14px; }
+
+  /* Results */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin: 24px 0 8px; font-size: 14px; color: var(--muted); }
+  .toolbar input[type=range] { width: 160px; accent-color: var(--accent); vertical-align: middle; }
+  .toolbar output { font-family: var(--mono); color: var(--text); }
+  ol.results { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+  ol.results:empty { border-top: 0; }
+  .row { display: grid; grid-template-columns: 128px 1fr auto; gap: 4px 18px; padding: 14px 4px; border-bottom: 1px solid var(--line); align-items: start; }
+  .row:hover { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+  .score { padding-top: 5px; }
+  .score .num { font: 600 15px var(--mono); display: block; margin-bottom: 6px; }
+  .bar { height: 6px; background: var(--bar-track); border-radius: 3px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .title { font-weight: 600; line-height: 1.4; color: var(--text); text-decoration: none; }
+  .title:hover { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
+  .sub { font-size: 13px; color: var(--muted); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .sub .kind { font-weight: 600; color: var(--text); }
+  .sub .label { color: var(--accent-text); }
+  .sub code { font: 12px var(--mono); color: var(--faint); overflow-wrap: anywhere; }
+  .more { font: 13px var(--body); background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; padding: 3px 10px; cursor: pointer; white-space: nowrap; }
+  .more:hover { color: var(--text); border-color: var(--line-strong); }
+  .detail { grid-column: 2 / 4; margin-top: 10px; display: grid; gap: 12px; }
+  .dist { display: grid; grid-template-columns: minmax(120px, max-content) 1fr 48px; gap: 4px 12px; font-size: 13px; align-items: center; max-width: 560px; }
+  .dist .k { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dist .p { font-family: var(--mono); text-align: right; color: var(--muted); }
+  .dist .bar { height: 5px; }
+  .dist h4 { grid-column: 1 / -1; margin: 6px 0 0; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); }
+  .saw { font-size: 14px; color: var(--muted); white-space: pre-wrap; max-height: 260px; overflow: auto; border-left: 2px solid var(--line); padding: 2px 0 2px 14px; max-width: 80ch; }
+  .groups { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 4px; }
+  .skeleton .score .num, .skeleton .title, .skeleton .sub { background: var(--bar-track); color: transparent; border-radius: 4px; }
+  .skeleton .title { display: block; height: 18px; width: 60%; }
+  .skeleton .sub { height: 13px; width: 40%; }
+  .show-more { margin: 20px auto 0; display: block; }
+
+  .empty h2 { font: 700 20px/1.3 var(--display); margin: 40px 0 8px; }
+  .empty p { color: var(--muted); max-width: 64ch; margin: 0 0 16px; }
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; }
+  .examples .chip { font-size: 14px; padding: 6px 14px; }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px; }
+    .meta { margin-left: 0; flex: 1; }
+    .ask-row { flex-direction: column; }
+    .go { padding: 12px; }
+    .row { grid-template-columns: 1fr auto; }
+    .score { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
+    .score .num { margin: 0; }
+    .score .bar { flex: 1; }
+    .detail { grid-column: 1 / -1; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1 class="mark">Sie<span>v</span>e</h1>
+    <p class="tagline" id="tagline">Sift everything in the corpus by one question.</p>
+    <span class="meta" id="meta">loading corpus...</span>
+    <button class="theme-toggle" id="theme" type="button" aria-label="Switch color theme">Theme</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="modes" id="modes" role="tablist" aria-label="What to sift by">
+    <button class="mode" role="tab" data-mode="ask" aria-selected="true">Ask anything</button>
+  </div>
+
+  <form id="form" autocomplete="off">
+    <div class="ask-row">
+      <input type="text" id="q" name="q" maxlength="300" aria-label="Your question" placeholder="describe what you are looking for">
+      <button class="go" id="go" type="submit">Sift</button>
+    </div>
+    <p class="mode-help" id="help"></p>
+    <div class="filters">
+      <div id="answer-as-wrap"><span class="field-label">Answer as</span>
+        <span class="answer-as" role="group" aria-label="Answer type">
+          <button type="button" data-type="noul" aria-pressed="true">Yes / no</button>
+          <button type="button" data-type="score" aria-pressed="false">Scale</button>
+        </span>
+      </div>
+      <div id="since-wrap" hidden><label class="field-label" for="since">Dated</label>
+        <select id="since">
+          <option value="">any time</option>
+          <option value="30">last 30 days</option>
+          <option value="90">last 90 days</option>
+          <option value="365">last year</option>
+        </select>
+      </div>
+      <div><span class="field-label">Kinds</span><span class="chips" id="kinds" role="group" aria-label="Item kinds"></span></div>
+    </div>
+  </form>
+
+  <section class="status" id="status" hidden aria-live="polite">
+    <div class="status-line"><span id="status-text"></span><span class="stats" id="stats"></span></div>
+    <div class="progress" aria-hidden="true"><i id="progress"></i></div>
+  </section>
+
+  <div id="groups" class="groups" hidden></div>
+  <div class="toolbar" id="toolbar" hidden>
+    <label>Show at or above <input type="range" id="threshold" min="0" max="100" step="5" value="50"> <output id="threshold-out">50%</output></label>
+    <span id="count"></span>
+  </div>
+  <ol class="results" id="results"></ol>
+  <button class="more show-more" id="show-more" type="button" hidden>Show more</button>
+
+  <section class="empty" id="empty">
+    <h2>Try a question</h2>
+    <p>Every item in the corpus gets the same typed question. Jev answers each one with a probability, in a few seconds, for a few cents.</p>
+    <div class="examples" id="examples"></div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  // Tabs, help text, kind names, and examples all come from the config via /api/meta.
+  let MODES = { ask: { help: 'Type what you are looking for in plain words.', input: true, answerAs: true } };
+  let KIND_LABELS = {};
+  const PAGE = 60;
+
+  let lensLabels = {};
+  let mode = 'ask', type = 'noul', meta = null, rows = [], total = 0, source = null, shown = PAGE, activeGroup = null, grouped = false;
+  const kinds = new Set();
+
+  // Theme toggle: remembered per browser, never required.
+  const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+  const savedTheme = store.get('sieve-theme');
+  if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+  $('theme').addEventListener('click', () => {
+    const dark = getComputedStyle(document.documentElement).colorScheme.includes('dark');
+    const next = dark ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    store.set('sieve-theme', next);
+  });
+
+  function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+  const pct = (v) => (v < 0 ? 'err' : `${Math.round(v * 100)}%`);
+  const money = (x) => `$${x < 0.01 ? x.toFixed(4) : x.toFixed(3)}`;
+
+  function setMode(m) {
+    mode = m;
+    for (const b of document.querySelectorAll('.mode')) b.setAttribute('aria-selected', String(b.dataset.mode === m));
+    const cfg = MODES[m];
+    $('help').textContent = cfg.help;
+    $('q').hidden = !cfg.input;
+    $('q').placeholder = cfg.placeholder || '';
+    if (!cfg.input) $('q').value = '';
+    $('answer-as-wrap').hidden = !cfg.answerAs;
+    $('go').textContent = cfg.input ? 'Sift' : 'Sift the corpus';
+    if (cfg.input) $('q').focus();
+  }
+
+  async function loadMeta() {
+    try {
+      meta = await (await fetch('/api/meta')).json();
+    } catch (err) {
+      $('meta').textContent = 'server unreachable';
+      return;
+    }
+    $('meta').textContent = `${meta.items.toLocaleString()} items · ${meta.model}`;
+    $('tagline').textContent = meta.tagline;
+    document.title = `Sieve · ${meta.name}`;
+    KIND_LABELS = meta.kinds || {};
+    MODES = Object.fromEntries(meta.presets.map((p) => [p.id, { title: p.title, help: p.hint, input: p.input, optional: p.optional, placeholder: p.id === 'ask' ? (meta.examples[0] || 'describe what you are looking for') : p.placeholder, answerAs: p.answerAs, grouped: p.grouped }]));
+    $('modes').innerHTML = meta.presets.map((p) => `<button class="mode" role="tab" data-mode="${esc(p.id)}" aria-selected="false">${esc(p.title)}</button>`).join('');
+    $('examples').innerHTML = meta.examples.map((x) => `<button type="button" class="chip">${esc(x)}</button>`).join('');
+    $('examples').parentElement.hidden = !meta.examples.length;
+    $('since-wrap').hidden = !meta.dated;
+    setMode(MODES[mode] ? mode : meta.presets[0].id);
+    const order = [...Object.keys(KIND_LABELS), ...Object.keys(meta.by)].filter((k, i, a) => meta.by[k] && a.indexOf(k) === i);
+    $('kinds').innerHTML = order.map((k) => `<button type="button" class="chip" data-kind="${k}" aria-pressed="true">${esc(KIND_LABELS[k] || k)}<span class="n">${meta.by[k]}</span></button>`).join('');
+    for (const k of order) kinds.add(k);
+  }
+
+  function sinceParam() {
+    const v = $('since').value;
+    if (!v || v.includes('-')) return v;
+    const d = new Date(Date.now() - Number(v) * 864e5);
+    return d.toISOString().slice(0, 10);
+  }
+
+  function vscodeLink(r) {
+    if (!meta) return '#';
+    return `vscode://file/${meta.root}/${r.path}:${r.line}`;
+  }
+
+  const aboveThreshold = () => rows.filter((r) => r.value >= Number($('threshold').value) / 100);
+  function visible() {
+    return aboveThreshold().filter((r) => !grouped || !activeGroup || r.group === activeGroup);
+  }
+
+  function render() {
+    const list = visible();
+    const slice = list.slice(0, shown);
+    $('results').innerHTML = slice.map((r) => `
+      <li class="row" data-id="${r.id}">
+        <div class="score"><span class="num">${pct(r.value)}</span><div class="bar"><i style="width:${Math.max(0, r.value) * 100}%"></i></div></div>
+        <div>
+          <a class="title" href="${esc(vscodeLink(r))}" title="Open in VS Code">${esc(r.title)}</a>
+          <div class="sub"><span class="kind">${esc(KIND_LABELS[r.kind] || r.kind)}</span><span>${esc(r.date || '')}</span><span class="label">${esc(r.label || '')}</span><code>${esc(r.path)}:${r.line}</code></div>
+        </div>
+        <button class="more" type="button" data-expand="${r.id}" aria-expanded="false">Details</button>
+      </li>`).join('');
+    $('show-more').hidden = list.length <= shown;
+    $('count').textContent = `${list.length.toLocaleString()} of ${rows.length.toLocaleString()} shown${activeGroup ? ` in ${activeGroup}` : ''}`;
+    if (grouped) renderGroups();
+  }
+
+  // Group counts follow the threshold, so a chapter only counts items that clear it.
+  function renderGroups() {
+    const counts = {};
+    const passing = aboveThreshold();
+    for (const r of passing) if (r.group) counts[r.group] = (counts[r.group] || 0) + 1;
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    $('groups').hidden = !entries.length;
+    $('groups').innerHTML = [`<button type="button" class="chip" data-group="" aria-pressed="${!activeGroup}">all<span class="n">${passing.length}</span></button>`]
+      .concat(entries.map(([g, n]) => `<button type="button" class="chip" data-group="${esc(g)}" aria-pressed="${activeGroup === g}">${esc(g)}<span class="n">${n}</span></button>`)).join('');
+  }
+
+  function skeleton() {
+    $('results').innerHTML = Array.from({ length: 6 }, () => `<li class="row skeleton"><div class="score"><span class="num">00%</span><div class="bar"></div></div><div><span class="title">&nbsp;</span><div class="sub">&nbsp;</div></div><span></span></li>`).join('');
+  }
+
+  const distRow = (k, p) => `<span class="k" title="${esc(k)}">${esc(k)}</span><div class="bar"><i style="width:${p * 100}%"></i></div><span class="p">${Math.round(p * 100)}%</span>`;
+
+  // Choices list only the options that got real probability; score levels always show in order.
+  function distHtml(title, probs, legend) {
+    let entries = Object.entries(probs).map(([k, p]) => [legend ? legend[k] : k, p]);
+    let hidden = 0;
+    if (!legend) {
+      entries.sort((a, b) => b[1] - a[1]);
+      const kept = entries.filter(([, p], i) => i < 2 || p >= 0.005);
+      hidden = entries.length - kept.length;
+      entries = kept;
+    }
+    return `<h4>${esc(title)}</h4>` + entries.map(([k, p]) => distRow(k, p)).join('')
+      + (hidden ? `<span class="k">+${hidden} more at 0%</span><span></span><span></span>` : '');
+  }
+
+  async function expand(btn) {
+    const li = btn.closest('.row');
+    const open = li.querySelector('.detail');
+    if (open) { open.remove(); btn.setAttribute('aria-expanded', 'false'); btn.textContent = 'Details'; return; }
+    const r = rows.find((x) => x.id === btn.dataset.expand);
+    const det = document.createElement('div');
+    det.className = 'detail';
+    let dist = '';
+    for (const [name, a] of Object.entries(r.answers || {})) {
+      if (!a) continue;
+      const lens = name === 'q' ? '' : `${lensLabels[name] || name}: `;
+      if (a.type === 'noul') dist += `<h4>${esc(lens)}yes / no</h4>${distRow('yes', a.noul)}`;
+      else dist += distHtml(`${lens}${a.type === 'score' ? 'scale' : 'choice'}, confidence ${Math.round(a.confidence * 100)}%`, a.probabilities, a.legend);
+    }
+    det.innerHTML = `<div class="dist">${dist}</div><div class="saw" aria-label="What Jev read">loading what Jev read...</div>`;
+    li.appendChild(det);
+    btn.setAttribute('aria-expanded', 'true');
+    btn.textContent = 'Hide';
+    try {
+      const item = await (await fetch(`/api/item?id=${encodeURIComponent(r.id)}`)).json();
+      det.querySelector('.saw').textContent = item.text || '';
+    } catch { det.querySelector('.saw').textContent = 'Could not load the item text.'; }
+  }
+
+  function status(text, stats) {
+    $('status').hidden = false;
+    $('status-text').innerHTML = text;
+    $('stats').textContent = stats || '';
+  }
+
+  async function run(e) {
+    e && e.preventDefault();
+    const cfg = MODES[mode];
+    const q = $('q').value.trim();
+    if (cfg.input && !cfg.optional && !q) { $('q').focus(); status('Type a question first.'); return; }
+    if (!kinds.size) { status('Pick at least one kind of item.'); return; }
+    if (source) source.close();
+    rows = []; total = 0; shown = PAGE; activeGroup = null; grouped = Boolean(cfg.grouped);
+    $('empty').hidden = true;
+    $('toolbar').hidden = false;
+    $('groups').hidden = true;
+    $('go').disabled = true;
+    $('progress').style.width = '0%';
+    skeleton();
+
+    const p = new URLSearchParams({ preset: mode, type });
+    if (mode === 'ask') p.set('q', q);
+    if (mode === 'counter' && q) p.set('thesis', q);
+    const since = sinceParam();
+    if (since) p.set('since', since);
+    if (meta && kinds.size < Object.keys(meta.by).length) p.set('kind', [...kinds].join(','));
+    // Validate first (free): EventSource cannot read an error response, and retrying the
+    // stream itself would start a second, paid sift.
+    try {
+      const pre = await fetch(`/api/sift?${p}&check=1`);
+      const j = await pre.json();
+      if (!pre.ok) { finish(); $('results').innerHTML = ''; status(`<span class="notice">${esc(j.error)}</span>`); return; }
+    } catch {
+      finish(); $('results').innerHTML = '';
+      status('<span class="notice">Cannot reach the Sieve server. Start it with <code>node projects/sieve/sieve.cjs serve</code>.</span>');
+      return;
+    }
+    const t0 = performance.now();
+    status('<strong>Sifting</strong>');
+    source = new EventSource(`/api/sift?${p}`);
+    let got = 0;
+
+    source.addEventListener('start', (ev) => {
+      const d = JSON.parse(ev.data);
+      total = d.total;
+      lensLabels = d.lensLabels || {};
+      status(`<strong>${esc(d.title)}</strong> · reading ${total.toLocaleString()} items`);
+      if (!total) { finish(); $('results').innerHTML = ''; status('No items match those filters. Widen the date range or turn more kinds on.'); }
+    });
+    source.addEventListener('batch', (ev) => {
+      const batch = JSON.parse(ev.data);
+      got += batch.length;
+      rows.push(...batch);
+      rows.sort((a, b) => b.value - a.value);
+      $('progress').style.width = `${(got / Math.max(1, total)) * 100}%`;
+      $('stats').textContent = `${got.toLocaleString()} / ${total.toLocaleString()} · ${((performance.now() - t0) / 1000).toFixed(1)} s`;
+      render();
+    });
+    source.addEventListener('done', (ev) => {
+      const d = JSON.parse(ev.data);
+      finish();
+      const failed = d.failures ? ` · ${d.failures} failed` : '';
+      status(`<strong>Done.</strong> ${d.items.toLocaleString()} items judged`, `${d.requests} requests${d.cached ? ` (+${d.cached} cached)` : ''} · ${(d.ms / 1000).toFixed(1)} s · ${money(d.cost)}${failed}`);
+      render();
+    });
+    source.addEventListener('failed', (ev) => { finish(); status(`<span class="notice">${esc(JSON.parse(ev.data).error)}</span>`); });
+    // Never let EventSource reconnect on its own: a reconnect is a new, paid sift.
+    source.onerror = () => {
+      if (!source) return;
+      finish();
+      const kept = rows.length ? ` Showing the ${rows.length.toLocaleString()} results that arrived.` : '';
+      if (!rows.length) $('results').innerHTML = '';
+      status(`<span class="notice">Lost the connection to the Sieve server.${kept}</span>`);
+      render();
+    };
+  }
+
+  function finish() {
+    if (source) { source.close(); source = null; }
+    $('go').disabled = false;
+    $('progress').style.width = '100%';
+  }
+
+  // wiring
+  document.querySelector('.modes').addEventListener('click', (e) => { const b = e.target.closest('.mode'); if (b) setMode(b.dataset.mode); });
+  document.querySelector('.answer-as').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    type = b.dataset.type;
+    for (const x of document.querySelectorAll('.answer-as button')) x.setAttribute('aria-pressed', String(x === b));
+  });
+  $('kinds').addEventListener('click', (e) => {
+    const b = e.target.closest('.chip'); if (!b) return;
+    const on = b.getAttribute('aria-pressed') !== 'true';
+    b.setAttribute('aria-pressed', String(on));
+    on ? kinds.add(b.dataset.kind) : kinds.delete(b.dataset.kind);
+  });
+  $('groups').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (!b) return; activeGroup = b.dataset.group || null; shown = PAGE; render(); });
+  $('threshold').addEventListener('input', () => { $('threshold-out').textContent = `${$('threshold').value}%`; shown = PAGE; render(); });
+  $('results').addEventListener('click', (e) => { const b = e.target.closest('[data-expand]'); if (b) expand(b); });
+  $('show-more').addEventListener('click', () => { shown += PAGE; render(); });
+  $('form').addEventListener('submit', run);
+  $('examples').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (!b) return; setMode('ask'); $('q').value = b.textContent; run(); });
+
+  setMode('ask');
+  loadMeta();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+# Sieve: the framework is public; YOUR corpus config, reports, and notes are not.
+# Put them in local/ (see local/README.md). Only the README there is tracked.
+/local/*
+!/local/README.md
+
+# Answer cache (Jev responses; can contain text from your corpus)
+.cache/
+
+# Generated routing reports
+reports/
+
+# Secrets
+.env
+.env.*
+
+# Internal planning and the mirror script (author-side)
+/.meta/
+
+node_modules/
+.DS_Store
+Thumbs.db

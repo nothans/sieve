@@ -1,0 +1,16 @@
+{
+  "name": "sieve",
+  "version": "0.1.0",
+  "description": "Sift a whole folder of notes by any judgment, in seconds, with Jev (TypeSafe's typed-decision model) via OpenRouter.",
+  "license": "MIT",
+  "author": "Hans Scharler (https://nothans.com)",
+  "repository": "github:nothans/sieve",
+  "private": true,
+  "engines": { "node": ">=20.6" },
+  "bin": { "sieve": "sieve.cjs", "jev": "lib/jev.cjs" },
+  "scripts": {
+    "test": "node --test \"test/*.test.cjs\"",
+    "demo": "node sieve.cjs serve --config examples/aesop/sieve.config.json",
+    "demo:notes": "node sieve.cjs serve --config examples/research-notes/sieve.config.json"
+  }
+}
