@@ -292,50 +292,122 @@ test('eval strips configured patterns and scores accuracy, bands, and confusion'
   assert.deepEqual(s.confusion, { 'a -> b': 1 });
 });
 
-test('server binds to localhost, serves config meta, runs one sift at a time, and preflights for free', async () => {
+test('backend profiles: validation, merging with built-ins, and cache scope', () => {
+  const b = require('../lib/backends.cjs');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sieve-set-'));
+  const file = path.join(dir, 'settings.json');
+  const fresh = b.readSettings(file);
+  assert.equal(fresh.active, 'openrouter');
+  assert.deepEqual(fresh.backends.map((p) => p.id), ['openrouter', 'typesafe', 'local']);
+
+  assert.throws(() => b.normalizeProfile({ id: 'x', baseUrl: 'http://example.com/v1/systemone', model: 'm' }), /use https/);
+  assert.throws(() => b.normalizeProfile({ id: 'x', baseUrl: 'ftp://127.0.0.1/', model: 'm' }), /http or https/);
+  assert.throws(() => b.normalizeProfile({ id: 'Bad Id', baseUrl: 'https://a.b/', model: 'm' }), /lowercase/);
+  assert.throws(() => b.normalizeProfile({ id: 'x', baseUrl: 'https://a.b/', model: 'm', keyEnv: 'sk-or-v1-secret' }), /environment variable NAME/);
+  const p = b.normalizeProfile({ id: 'kev9', baseUrl: 'http://localhost:9000/v1/systemone', model: 'kev-latest', pack: 99, concurrency: 0 });
+  assert.equal(p.pack, 26);
+  assert.equal(p.concurrency, 1);
+
+  const saved = b.writeSettings({ active: 'kev9', backends: [...fresh.backends, p] }, file);
+  assert.equal(saved.active, 'kev9');
+  assert.ok(!fs.readFileSync(file, 'utf8').includes('builtin'));
+  assert.equal(b.getProfile(saved).id, 'kev9');
+  assert.throws(() => b.getProfile(saved, 'nope'), /unknown backend/);
+
+  assert.equal(b.cacheScope(b.getProfile(saved, 'openrouter'), ''), ''); // existing Jev cache keys stay valid
+  assert.equal(b.cacheScope(p, 'jaredpalmer/kev-4b'), 'http://localhost:9000/v1/systemone|jaredpalmer/kev-4b');
+});
+
+test('server: localhost only, same-origin API, backend settings, one sift at a time, free preflight', async () => {
   const { serve } = require('../lib/server.cjs');
   const config = { name: 'Test', root: os.tmpdir(), sources: [{ kind: 'note', display: 'notes', glob: '*.none' }], lenses: LENSES, presets: [{ id: 'ask' }, { id: 'topic', lens: 'topic', group: true }], examples: ['one'] };
   const corpus = [item('a', 'match'), item('b', 'nothing')];
+  const seen = [];
   const fake = http.createServer((req, res) => {
+    if (req.method === 'GET') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify({ models: [{ name: 'fake', run: 'fake/run-1' }] })); }
     let body = '';
     req.on('data', (c) => { body += c; });
     req.on('end', () => {
+      seen.push({ auth: req.headers.authorization, body: JSON.parse(body) });
       const { questions } = JSON.parse(body);
       const answers = Object.fromEntries(Object.keys(questions).map((k) => [k, { type: 'noul', noul: 0.7 }]));
-      setTimeout(() => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ model: 'fake', answers, usage: { input_tokens: 10, cost: 0.000001 } })); }, 150);
+      setTimeout(() => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ model: 'fake', answers, usage: { input_tokens: 10 } })); }, 150);
     });
   }).listen(0, '127.0.0.1');
   await new Promise((r) => fake.once('listening', r));
-  process.env.JEV_BASE_URL = `http://127.0.0.1:${fake.address().port}/`;
-  process.env.OPENROUTER_API_KEY ||= 'test-key';
-  const server = serve({ config, corpus, port: 0, cacheFile: null });
+  const fakeUrl = `http://127.0.0.1:${fake.address().port}/v1/systemone`;
+  const settingsFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'sieve-srv-')), 'settings.json');
+  fs.writeFileSync(settingsFile, JSON.stringify({ active: 'fake', backends: [{ id: 'fake', label: 'Fake', kind: 'local', baseUrl: fakeUrl, model: 'fake', keyEnv: '', pack: 16, concurrency: 2, timeoutMs: 5000 }] }));
+  const server = serve({ config, corpus, port: 0, cacheFile: null, settingsFile });
   await new Promise((r) => server.once('listening', r));
   const { address, port } = server.address();
   assert.equal(address, '127.0.0.1');
   const base = `http://127.0.0.1:${port}`;
+  const H = { 'X-Sieve': '1', 'Content-Type': 'application/json' };
   try {
-    const meta = await (await fetch(`${base}/api/meta`)).json();
+    const meta = await (await fetch(base + '/api/meta')).json();
     assert.equal(meta.items, 2);
-    assert.equal(meta.dated, 2);
     assert.deepEqual(meta.presets.map((p) => p.id), ['ask', 'topic']);
-    assert.deepEqual(meta.examples, ['one']);
     assert.deepEqual(meta.kinds, { note: 'notes' });
+    assert.equal(meta.backend.id, 'fake');
 
-    assert.equal((await fetch(`${base}/api/sift?preset=ask&q=`)).status, 400);
-    assert.equal((await fetch(`${base}/api/sift?preset=nope`)).status, 400);
-    const pre = await fetch(`${base}/api/sift?preset=ask&q=topic&check=1`);
-    assert.deepEqual(await pre.json(), { ok: true, title: 'topic' });
+    // cross-site pages and rebinding hosts are refused; settings need the X-Sieve header
+    assert.equal((await fetch(base + '/api/meta', { headers: { Origin: 'http://evil.example' } })).status, 403);
+    assert.equal((await fetch(base + '/api/meta', { headers: { 'Sec-Fetch-Site': 'cross-site' } })).status, 403);
+    assert.equal((await fetch(base + '/api/settings')).status, 403);
+    const st = await (await fetch(base + '/api/settings', { headers: H })).json();
+    assert.equal(st.active, 'fake');
+    assert.ok(st.backends.some((p) => p.id === 'openrouter' && typeof p.keySet === 'boolean'));
 
-    const first = fetch(`${base}/api/sift?preset=ask&q=topic`).then((r) => r.text());
+    assert.equal((await fetch(base + '/api/sift?preset=ask&q=')).status, 400);
+    assert.equal((await fetch(base + '/api/sift?preset=nope')).status, 400);
+    const pre = await (await fetch(base + '/api/sift?preset=ask&q=topic&check=1')).json();
+    assert.equal(pre.ok, true);
+    assert.equal(pre.backend.id, 'fake');
+
+    const first = fetch(base + '/api/sift?preset=ask&q=topic').then((r) => r.text());
     await new Promise((r) => setTimeout(r, 50));
-    assert.equal((await fetch(`${base}/api/sift?preset=ask&q=topic`)).status, 429);
+    assert.equal((await fetch(base + '/api/sift?preset=ask&q=topic')).status, 429);
     const stream = await first;
-    assert.match(stream, /event: start/);
-    assert.match(stream, /event: batch/);
     assert.match(stream, /event: done\ndata: \{"items":2,"requests":1/);
+    assert.equal(seen[0].auth, undefined); // no key configured: no Authorization header sent
+    assert.equal(seen[0].body.model, 'fake');
+
+    // test a backend without saving it, then save a bad one and a good one
+    const probe = await (await fetch(base + '/api/settings/test', { method: 'POST', headers: H, body: JSON.stringify({ backend: { id: 'fake', baseUrl: fakeUrl, model: 'fake' } }) })).json();
+    assert.equal(probe.ok, true);
+    assert.equal(probe.served, 'fake/run-1');
+    const bad = await fetch(base + '/api/settings', { method: 'PUT', headers: H, body: JSON.stringify({ active: 'fake', backends: [{ id: 'fake', baseUrl: 'http://evil.example/', model: 'x' }] }) });
+    assert.equal(bad.status, 400);
+    const good = await (await fetch(base + '/api/settings', { method: 'PUT', headers: H, body: JSON.stringify({ active: 'fake', backends: [...st.backends.filter((p) => p.id !== 'fake'), { id: 'fake', baseUrl: fakeUrl, model: 'fake', pack: 1, concurrency: 1 }] }) })).json();
+    assert.equal(good.backends.find((p) => p.id === 'fake').pack, 1);
+    await (await fetch(base + '/api/sift?preset=ask&q=topic')).text();
+    assert.equal(seen.length, 4); // 1 packed sift request + 1 probe + 2 (pack 1: one request per item)
   } finally {
-    delete process.env.JEV_BASE_URL;
     server.close();
     fake.close();
   }
+});
+
+test('eval thresholds: the lowest confidence that reaches a target accuracy, and its coverage', () => {
+  const { thresholdsFor } = require('../lib/evaluate.cjs');
+  // 30 answers: the top 20 (confidence 0.99..0.80) are right, the rest (0.60..0.51) mostly wrong
+  const rows = Array.from({ length: 30 }, (_, i) => ({
+    ok: i < 20 || i === 25,
+    answer: { confidence: i < 20 ? 0.99 - i * 0.01 : 0.6 - (i - 20) * 0.01 },
+  }));
+  const [t90, t95] = thresholdsFor(rows, (r) => r.ok);
+  assert.equal(t90.confidence, 0.59); // 22 answers down to 0.59: 20/22 = 90.9% right
+  assert.ok(Math.abs(t90.coverage - 22 / 30) < 1e-9);
+  assert.equal(t95.confidence, 0.6); // 21 answers: 20/21 = 95.2%; one more drops below 95%
+  const none = thresholdsFor(rows.slice(0, 10), (r) => r.ok); // fewer than 20 answers: no claim
+  assert.equal(none[0].confidence, null);
+});
+
+test('eval reports accuracy without the escape option when the lens has "none"', () => {
+  const r = (label, probs) => ({ item: { label }, answer: { type: 'choice', choice: Object.entries(probs).sort((a, b) => b[1] - a[1])[0][0], confidence: 0.5, probabilities: probs } });
+  const s = score([r('a', { a: 0.3, b: 0.1, none: 0.6 }), r('b', { a: 0.2, b: 0.7, none: 0.1 }), r('a', { a: 0.1, b: 0.3, none: 0.6 })]);
+  assert.equal(s.accuracy, 1 / 3);
+  assert.deepEqual(s.withoutNone, { accuracy: 2 / 3, noneChosen: 2 });
+  assert.equal(score([r('a', { a: 0.9, b: 0.1 })]).withoutNone, null);
 });

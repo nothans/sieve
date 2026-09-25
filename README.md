@@ -57,6 +57,7 @@ node sieve.cjs ask "<plain words>"           # rank everything; --type score for
 node sieve.cjs lens <preset>                 # run a preset from the config
 node sieve.cjs route                         # write a routing report (orphans, hooks, second looks)
 node sieve.cjs eval                          # accuracy of a choice lens against labels you already have
+node sieve.cjs eval --backend local          # the same eval against a local model (see Backends)
 node sieve.cjs serve                         # the web UI
 ```
 
@@ -166,6 +167,47 @@ The research-notes demo finds exactly the four briefs its index leaves out.
 If a source carries labels (`"label": "filename"` when files are already sorted by topic), that filing is ground truth.
 `sieve eval` strips anything that would give the answer away (`strip`, regexes), asks the lens, and reports accuracy, top-2 accuracy, accuracy by confidence band, and the most common confusions, at several pack sizes.
 
+## Backends: Jev in the cloud, or a model on your machine
+
+Every backend speaks the same request (`{ model, state, questions }` in, typed answers out), so Sieve can send its questions to:
+
+| Backend | What it is | Defaults |
+|---|---|---|
+| **Jev via OpenRouter** (default) | `typesafe/jev-1.13`; key in `OPENROUTER_API_KEY` | 16 items per request, 16 requests at once |
+| **Jev via TypeSafe** | `jev-latest` direct; key in `TYPESAFE_API_KEY` | 16 and 16 |
+| **Local server** | any server with TypeSafe's `/v1/systemone` API: [Kev](https://github.com/jaredpalmer/kev), [Laya](https://github.com/NandhaKishorM/laya), [openjev](https://github.com/razorback16/openjev), JevK5 | 1 item per request, 1 at a time, 5-minute timeout |
+
+Pick one in the web UI's **Settings** tab (or `--backend <id>` on the command line), edit its URL, model, and limits, add more local servers, and **Test connection** before you save.
+Settings live in `local/settings.json`.
+Keys never do: a profile names the environment variable that holds its key, and the page only shows whether it is set.
+Plain `http` is allowed only for this machine.
+Answers are cached per backend (and per checkpoint a local server reports), so switching backends never mixes their answers.
+
+Running Kev locally (it needs about 9 GB of RAM or VRAM for Kev-4B in bf16; see its README for Macs and GPUs):
+
+```bash
+git clone https://github.com/jaredpalmer/kev && cd kev && uv sync --extra serve
+KEV_DTYPE=bf16 uv run --extra serve python -m kev.serve --run jaredpalmer/kev-4b --port 8009
+# then in Sieve: Settings > Local server > Test connection, or
+node sieve.cjs eval --backend local --packs 1 --concurrency 3
+```
+
+**What to expect (measured 2026-09-25, same 240 hand-filed items as above, one item per request):**
+
+| | Kev-4B, local CPU (Ryzen AI 9 HX 370, bf16) | Jev 1.13 via OpenRouter |
+|---|---|---|
+| Accuracy | 55.0% | 77.9% (same items) |
+| Best real theme, with the "none" option removed | 75.8% | 81.8% |
+| Right answer in the top two | 79.6% | 94.4% |
+| To be right 90% of the time, act at | confidence ≥ 0.52, covering 25% of items | ≥ 0.91, covering 58% |
+| Speed | about 5-7 s per item (11 items a minute at 3 requests at once) | about 0.3-0.8 s per request of 16 items |
+| Cost | electricity | about $0.01 for all 240 |
+
+Most of Kev's gap is one habit: it picked "none of these themes" on 83 of 240 items (Jev: 17).
+It is also underconfident here (answers it rated 0.5-0.8 were right 86% of the time), which is why its 90% threshold sits at 0.52.
+Your numbers will differ by corpus and hardware, so run `sieve eval --backend <id>` before trusting a local backend: it reports accuracy, accuracy without the escape option, and the threshold that reaches 90% and 95% on your own labels.
+Thresholds do not transfer between backends.
+
 ## How well does it work? (measured)
 
 On a real 1,140-item research notebook (the author's own; not included), against 240 insights and signals already filed into six themes by hand, with the tags stripped:
@@ -215,7 +257,8 @@ Set `JEV_MODEL` to `~typesafe/jev-latest` to follow new releases; the default pi
 
 ## Safety notes
 
-- `sieve serve` binds to 127.0.0.1 only. Every sift spends OpenRouter credit and the server holds your key, so it is not for the network.
+- `sieve serve` binds to 127.0.0.1 only. Every sift spends API credit and the server holds your keys, so it is not for the network.
+- Binding to localhost is not enough on its own, because any web page you have open can send requests to 127.0.0.1. Sieve's API answers only its own page: it checks the Host header (which stops DNS rebinding), the Origin, and `Sec-Fetch-Site`, and settings changes also require an `X-Sieve` header that a cross-site page cannot send.
 - One sift runs at a time, the page validates with a free preflight, and it never lets the browser silently reconnect a stream (a reconnect would be a second, paid sift).
 - Jev has a 64k-token request limit (32k for the state plus the longest question) and 1,200 requests per minute. Sieve's packing keeps a 1,000-item sweep to about 70 requests.
 
@@ -225,7 +268,7 @@ Set `JEV_MODEL` to `~typesafe/jev-latest` to follow new releases; the default pi
 npm test        # or: node --test "test/*.test.cjs"
 ```
 
-29 tests, no network: the corpus reader on every source mode, config loading, lenses and presets, packing at sizes 1-99, the report and eval logic, both shipped examples, the Jev client's retries and cache, and the web server end to end against a fake OpenRouter.
+32 tests, no network: the corpus reader on every source mode, config loading, lenses and presets, backend profiles and settings, packing at sizes 1-99, the report and eval logic (thresholds and the escape-option check), both shipped examples, the Jev client's retries and cache, and the web server end to end against a fake backend, including the cross-site guard.
 
 ## Credits
 

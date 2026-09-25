@@ -21,7 +21,9 @@
  *   --since <date>   only items dated on or after (YYYY-MM or YYYY-MM-DD)
  *   --type <t>       ask as noul (default) or score
  *   --thesis <text>  for a preset with a thesis: test this claim instead of the default
- *   --pack <n>       items per request (default 16; see README for the measured trade)
+ *   --backend <id>   which backend from Settings (default: the active one; see local/settings.json)
+ *   --pack <n>       items per request (default: the backend's setting)
+ *   --concurrency <n> requests in flight (default: the backend's setting)
  *   --top <n>        rows to print (default 15)
  *   --json           machine-readable output
  *   --no-cache       ignore the answer cache
@@ -32,7 +34,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { createClient } = require('./lib/jev.cjs');
+const backends = require('./lib/backends.cjs');
 const { buildCorpus } = require('./lib/corpus.cjs');
 const { loadConfig, SIEVE_DIR } = require('./lib/config.cjs');
 const { preset, buildLenses } = require('./lib/lenses.cjs');
@@ -100,16 +102,20 @@ async function main() {
     return;
   }
 
-  const jev = createClient({ cacheFile: a['no-cache'] ? null : CACHE });
+  const profile = backends.getProfile(backends.readSettings(), a.backend);
+  const jev = await backends.clientFor(profile, { cacheFile: a['no-cache'] ? null : CACHE });
+  process.stderr.write(`backend ${profile.id}: ${profile.model} at ${new URL(profile.baseUrl).host}${jev.servedRun ? ` (serving ${jev.servedRun})` : ''}
+`);
   const t0 = Date.now();
-  const pack = Number(a.pack) || DEFAULT_PACK;
+  const pack = Number(a.pack) || profile.pack || DEFAULT_PACK;
+  const concurrency = Number(a.concurrency) || profile.concurrency;
 
   if (cmd === 'ask' || cmd === 'lens') {
     const items = filterItems(corpus, a);
     const p = cmd === 'ask'
       ? preset(config, 'ask', { phrase: a._.slice(1).join(' '), type: a.type })
       : preset(config, a._[1], { thesis: a.thesis });
-    const results = (await siftMany(jev, items, p.lenses, { pack }))
+    const results = (await siftMany(jev, items, p.lenses, { pack, concurrency }))
       .map((r) => ({ item: r.item, answers: r.answers, value: r.answers ? p.value(r.answers) : -1, label: r.answers ? p.label(r.answers) : r.error }))
       .sort((x, y) => y.value - x.value);
     const top = Number(a.top) || 15;
@@ -125,12 +131,19 @@ async function main() {
     if (!e.lens) throw new Error('this config has no "eval" section (see README)');
     const lens = buildLenses(config.lenses)[e.lens];
     if (!lens) throw new Error(`eval: no lens "${e.lens}"`);
-    const packs = String(a.packs || '1,8,16,26').split(',').map(Number);
-    const res = await evaluate(jev, corpus, lens, { packs, n: Number(a.n) || e.n || 240, kinds: e.kinds, strip: e.strip });
+    const packs = String(a.packs || (profile.pack > 1 ? '1,8,16,26' : '1')).split(',').map(Number);
+    const res = await evaluate(jev, corpus, lens, { packs, n: Number(a.n) || e.n || 240, kinds: e.kinds, strip: e.strip, concurrency });
     if (a.json) { console.log(JSON.stringify(res, null, 2)); return; }
     console.log(`Eval of "${e.lens}": ${res.size} labeled items, label text stripped. Labels: ${JSON.stringify(res.labels)}`);
     for (const r of res.runs) {
       console.log(`\npack ${r.pack}: accuracy ${(r.accuracy * 100).toFixed(1)}%  top-2 ${(r.top2 * 100).toFixed(1)}%  ${r.requests} requests (${r.cached} cached)  $${r.cost_usd.toFixed(4)}  ${(r.ms / 1000).toFixed(1)} s  errors ${r.errors}`);
+      if (r.withoutNone) console.log(`  "none" was picked ${r.withoutNone.noneChosen} times; best real option right ${(r.withoutNone.accuracy * 100).toFixed(1)}% of the time`);
+      for (const t of r.thresholds) {
+        const pct = Math.round(t.target * 100);
+        console.log(t.confidence == null
+          ? `  no confidence level reaches ${pct}% accuracy on these items`
+          : `  to be right ${pct}% of the time, act at confidence >= ${t.confidence.toFixed(2)}: covers ${Math.round(t.coverage * 100)}% of items (${(t.accuracy * 100).toFixed(1)}% right)`);
+      }
       for (const b of r.bands) console.log(`  confidence ${b.band}: ${String(b.n).padStart(3)} items (${(b.share * 100).toFixed(0)}%), accuracy ${b.accuracy == null ? '-' : (b.accuracy * 100).toFixed(1) + '%'}`);
       const worst = Object.entries(r.confusion).sort((x, y) => y[1] - x[1]).slice(0, 4);
       if (worst.length) console.log(`  most common misses: ${worst.map(([k, v]) => `${k} (${v})`).join(', ')}`);
@@ -141,7 +154,7 @@ async function main() {
 
   if (cmd === 'route') {
     const { route } = require('./lib/route.cjs');
-    const out = await route(jev, corpus, config, { since: a.since, pack });
+    const out = await route(jev, corpus, config, { since: a.since, pack, concurrency });
     console.log(`wrote ${path.relative(process.cwd(), out.file)}`);
     report(jev, t0, out.n);
     return;

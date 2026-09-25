@@ -140,7 +140,44 @@
   .examples { display: flex; flex-wrap: wrap; gap: 8px; }
   .examples .chip { font-size: 14px; padding: 6px 14px; }
 
+  .views { display: inline-flex; gap: 2px; border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+  .views button { font: 600 13px var(--body); border: 0; background: none; color: var(--muted); padding: 4px 12px; border-radius: 6px; cursor: pointer; }
+  .views button:hover { color: var(--text); }
+  .views button[aria-current="page"] { background: var(--accent-weak); color: var(--text); }
+  .settings { padding-top: 32px; padding-bottom: 80px; }
+  .settings h2 { font: 700 20px/1.3 var(--display); margin: 0 0 8px; }
+  .settings h3 { font: 700 16px/1.3 var(--display); margin: 0 0 16px; }
+  .settings .lede { color: var(--muted); max-width: 72ch; margin: 0 0 24px; font-size: 15px; }
+  .backends { display: grid; gap: 8px; margin-bottom: 12px; }
+  .backend { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 14px; align-items: center; text-align: left; padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font: 14px var(--body); cursor: pointer; }
+  .backend:hover { border-color: var(--line-strong); }
+  .backend[data-active="true"] { border-color: var(--accent); background: var(--accent-weak); }
+  .backend[aria-pressed="true"] { outline: 2px solid var(--line-strong); outline-offset: 2px; }
+  .backend .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-strong); box-sizing: border-box; }
+  .backend[data-active="true"] .dot { border: 4px solid var(--accent); }
+  .backend .name { font-weight: 600; }
+  .backend .sub { grid-column: 2; font: 12px var(--mono); color: var(--faint); overflow-wrap: anywhere; }
+  .backend .tag { font-size: 12px; color: var(--muted); }
+  .backend .tag.editing { color: var(--accent-text); font-weight: 600; }
+  .add { margin-bottom: 28px; }
+  .edit { border-top: 1px solid var(--line); padding-top: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 20px; }
+  .grid label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); align-content: start; }
+  .grid label.wide { grid-column: span 2; }
+  .grid input { font: 15px var(--body); padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--text); min-width: 0; }
+  .grid input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+  .grid small { font-weight: 400; color: var(--faint); font-size: 12px; }
+  .grid small.ok { color: var(--accent-text); }
+  .grid small.bad { color: var(--error); }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 20px; }
+  .actions .go { padding: 9px 18px; font-size: 15px; }
+  .more.danger { color: var(--error); }
+  .result { font-size: 14px; color: var(--muted); }
+  .result.ok { color: var(--text); }
+  .result.bad { color: var(--error); }
   @media (max-width: 640px) {
+    .grid { grid-template-columns: 1fr; }
+    .grid label.wide { grid-column: auto; }
     .wrap { padding: 0 16px; }
     .meta { margin-left: 0; flex: 1; }
     .ask-row { flex-direction: column; }
@@ -160,11 +197,15 @@
     <h1 class="mark">Sie<span>v</span>e</h1>
     <p class="tagline" id="tagline">Sift everything in the corpus by one question.</p>
     <span class="meta" id="meta">loading corpus...</span>
+    <nav class="views" aria-label="Views">
+      <button type="button" data-view="sift" aria-current="page">Sift</button>
+      <button type="button" data-view="settings">Settings</button>
+    </nav>
     <button class="theme-toggle" id="theme" type="button" aria-label="Switch color theme">Theme</button>
   </div>
 </header>
 
-<main class="wrap">
+<main class="wrap" id="view-sift">
   <div class="modes" id="modes" role="tablist" aria-label="What to sift by">
     <button class="mode" role="tab" data-mode="ask" aria-selected="true">Ask anything</button>
   </div>
@@ -214,6 +255,32 @@
   </section>
 </main>
 
+<section class="wrap settings" id="view-settings" hidden aria-labelledby="settings-title">
+  <h2 id="settings-title">Backend</h2>
+  <p class="lede">Where Sieve sends its questions. Jev runs in the cloud through OpenRouter or TypeSafe; a local server (Kev, Laya, openjev) keeps your notes on this machine. Keys are read from environment variables or the <code>.env</code> file and never stored here.</p>
+  <div class="backends" id="backends" role="group" aria-label="Backends. Choose one to edit."></div>
+  <button type="button" class="more add" id="add-backend">Add a local server</button>
+
+  <form class="edit" id="edit" autocomplete="off" novalidate>
+    <h3 id="edit-title">Edit</h3>
+    <div class="grid">
+      <label>Name<input id="f-label" maxlength="60"></label>
+      <label class="wide">URL<input id="f-baseUrl" spellcheck="false" inputmode="url"></label>
+      <label>Model<input id="f-model" spellcheck="false"></label>
+      <label>Key variable<input id="f-keyEnv" spellcheck="false" placeholder="none"><small id="f-keystate"></small></label>
+      <label>Items per request<input id="f-pack" type="number" min="1" max="26"><small>16 suits Jev; small local models do best at 1.</small></label>
+      <label>Requests at once<input id="f-concurrency" type="number" min="1" max="32"><small>1-2 for a model on a laptop CPU.</small></label>
+      <label>Timeout (seconds)<input id="f-timeout" type="number" min="1" max="1800"></label>
+    </div>
+    <div class="actions">
+      <button type="button" class="more" id="test">Test connection</button>
+      <button type="submit" class="go" id="save">Save and use</button>
+      <button type="button" class="more danger" id="remove" hidden>Remove</button>
+      <span class="result" id="result" role="status" aria-live="polite"></span>
+    </div>
+  </form>
+</section>
+
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -223,6 +290,7 @@
   const PAGE = 60;
 
   let lensLabels = {};
+  let backendName = '';
   let mode = 'ask', type = 'noul', meta = null, rows = [], total = 0, source = null, shown = PAGE, activeGroup = null, grouped = false;
   const kinds = new Set();
 
@@ -239,7 +307,7 @@
 
   function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
   const pct = (v) => (v < 0 ? 'err' : `${Math.round(v * 100)}%`);
-  const money = (x) => `$${x < 0.01 ? x.toFixed(4) : x.toFixed(3)}`;
+  const money = (x) => `$${x < 0.0001 ? x.toFixed(6) : x < 0.01 ? x.toFixed(4) : x.toFixed(3)}`;
 
   function setMode(m) {
     mode = m;
@@ -261,7 +329,7 @@
       $('meta').textContent = 'server unreachable';
       return;
     }
-    $('meta').textContent = `${meta.items.toLocaleString()} items · ${meta.model}`;
+    $('meta').textContent = `${meta.items.toLocaleString()} items · ${meta.backend.label}: ${meta.backend.model}`;
     $('tagline').textContent = meta.tagline;
     document.title = `Sieve · ${meta.name}`;
     KIND_LABELS = meta.kinds || {};
@@ -412,7 +480,8 @@
       const d = JSON.parse(ev.data);
       total = d.total;
       lensLabels = d.lensLabels || {};
-      status(`<strong>${esc(d.title)}</strong> · reading ${total.toLocaleString()} items`);
+      backendName = d.backend ? d.backend.label : '';
+      status(`<strong>${esc(d.title)}</strong> · reading ${total.toLocaleString()} items${backendName ? ` with ${esc(backendName)}` : ''}`);
       if (!total) { finish(); $('results').innerHTML = ''; status('No items match those filters. Widen the date range or turn more kinds on.'); }
     });
     source.addEventListener('batch', (ev) => {
@@ -421,14 +490,17 @@
       rows.push(...batch);
       rows.sort((a, b) => b.value - a.value);
       $('progress').style.width = `${(got / Math.max(1, total)) * 100}%`;
-      $('stats').textContent = `${got.toLocaleString()} / ${total.toLocaleString()} · ${((performance.now() - t0) / 1000).toFixed(1)} s`;
+      const secs = (performance.now() - t0) / 1000;
+      // After a few batches, estimate the rest (local CPU models take minutes, not seconds).
+      const left = got >= 3 && got < total ? secs / got * (total - got) : 0;
+      $('stats').textContent = `${got.toLocaleString()} / ${total.toLocaleString()} · ${secs.toFixed(1)} s${left > 5 ? ` · about ${left >= 90 ? Math.round(left / 60) + ' min' : Math.round(left) + ' s'} left` : ''}`;
       render();
     });
     source.addEventListener('done', (ev) => {
       const d = JSON.parse(ev.data);
       finish();
       const failed = d.failures ? ` · ${d.failures} failed` : '';
-      status(`<strong>Done.</strong> ${d.items.toLocaleString()} items judged`, `${d.requests} requests${d.cached ? ` (+${d.cached} cached)` : ''} · ${(d.ms / 1000).toFixed(1)} s · ${money(d.cost)}${failed}`);
+      status(`<strong>Done.</strong> ${d.items.toLocaleString()} items judged${backendName ? ` by ${esc(backendName)}` : ''}`, `${d.requests} requests${d.cached ? ` (+${d.cached} cached)` : ''} · ${(d.ms / 1000).toFixed(1)} s · ${money(d.cost)}${failed}`);
       render();
     });
     source.addEventListener('failed', (ev) => { finish(); status(`<span class="notice">${esc(JSON.parse(ev.data).error)}</span>`); });
@@ -469,8 +541,138 @@
   $('form').addEventListener('submit', run);
   $('examples').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (!b) return; setMode('ask'); $('q').value = b.textContent; run(); });
 
+  // ---------------------------------------------------------------- settings
+  // Profiles come from /api/settings; only the environment variable NAME for a key is ever
+  // shown or saved. Every settings call carries X-Sieve, which the server requires.
+  let settings = null, editing = null;
+  const api = (url, opts = {}) => fetch(url, { ...opts, headers: { 'X-Sieve': '1', 'Content-Type': 'application/json', ...(opts.headers || {}) } })
+    .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j; });
+
+  function showView(v) {
+    for (const b of document.querySelectorAll('.views button')) {
+      if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    }
+    $('view-sift').hidden = v !== 'sift';
+    $('view-settings').hidden = v !== 'settings';
+    if (v === 'settings') loadSettings();
+    try { history.replaceState(null, '', v === 'settings' ? '#settings' : location.pathname); } catch {}
+  }
+  document.querySelector('.views').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) showView(b.dataset.view); });
+
+  async function loadSettings() {
+    try {
+      settings = await api('/api/settings');
+    } catch (err) {
+      $('backends').innerHTML = `<p class="notice">${esc(err.message)}</p>`;
+      return;
+    }
+    if (!editing || !settings.backends.some((p) => p.id === editing)) editing = settings.active;
+    renderBackends();
+    fillForm();
+  }
+
+  function keyLabel(p) {
+    if (!p.keyEnv) return 'no key';
+    return p.keySet ? `key ${p.keyEnv} set` : `key ${p.keyEnv} not set`;
+  }
+
+  function hostOf(u) { try { return new URL(u).host; } catch { return u; } }
+
+  function renderBackends() {
+    $('backends').innerHTML = settings.backends.map((p) => {
+      const tags = [p.id === settings.active ? 'in use' : '', p.id === editing ? 'editing' : ''].filter(Boolean).join(' · ');
+      return `
+      <button type="button" class="backend" aria-pressed="${p.id === editing}" data-active="${p.id === settings.active}" data-id="${esc(p.id)}">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="name">${esc(p.label)}</span>
+        <span class="tag${p.id === editing ? ' editing' : ''}">${tags}</span>
+        <span class="sub">${esc(p.model)} · ${esc(hostOf(p.baseUrl))} · ${p.pack} per request · ${esc(keyLabel(p))}</span>
+      </button>`;
+    }).join('');
+  }
+
+  const field = (k) => $('f-' + k);
+  function fillForm() {
+    const p = settings.backends.find((b) => b.id === editing);
+    $('edit-title').textContent = `Edit: ${p.label}`;
+    field('label').value = p.label;
+    field('baseUrl').value = p.baseUrl;
+    field('model').value = p.model;
+    field('keyEnv').value = p.keyEnv || '';
+    field('pack').value = p.pack;
+    field('concurrency').value = p.concurrency;
+    field('timeout').value = Math.round(p.timeoutMs / 1000);
+    const ks = $('f-keystate');
+    ks.textContent = !p.keyEnv ? 'Leave empty for a server that needs no key.' : p.keySet ? 'Set in the environment.' : `Not set. Add ${p.keyEnv}=... to .env and restart Sieve.`;
+    ks.className = !p.keyEnv ? '' : p.keySet ? 'ok' : 'bad';
+    $('remove').hidden = Boolean(p.builtin);
+    result('', '');
+    $('save').textContent = p.id === settings.active ? 'Save' : 'Save and use';
+  }
+
+  function formProfile() {
+    const p = settings.backends.find((b) => b.id === editing);
+    return {
+      id: p.id,
+      kind: p.kind,
+      label: field('label').value.trim() || p.label,
+      baseUrl: field('baseUrl').value.trim(),
+      model: field('model').value.trim(),
+      keyEnv: field('keyEnv').value.trim(),
+      pack: Number(field('pack').value),
+      concurrency: Number(field('concurrency').value),
+      timeoutMs: Number(field('timeout').value) * 1000,
+    };
+  }
+
+  function result(text, kind) { $('result').textContent = text; $('result').className = `result ${kind || ''}`; }
+  const strip = ({ keySet, builtin, ...p }) => p;
+
+  $('backends').addEventListener('click', (e) => {
+    const b = e.target.closest('.backend'); if (!b) return;
+    editing = b.dataset.id; renderBackends(); fillForm();
+  });
+  $('add-backend').addEventListener('click', () => {
+    let n = 2; while (settings.backends.some((p) => p.id === `local-${n}`)) n++;
+    const local = settings.backends.find((p) => p.id === 'local');
+    settings.backends.push({ ...local, id: `local-${n}`, label: `Local server ${n}`, baseUrl: `http://127.0.0.1:${8008 + n}/v1/systemone`, builtin: false, keySet: null });
+    editing = `local-${n}`; renderBackends(); fillForm();
+    result('New profile. Fill it in, test it, then save.', '');
+  });
+  $('test').addEventListener('click', async () => {
+    $('test').disabled = true;
+    result('Asking one question...', '');
+    try {
+      const r = await api('/api/settings/test', { method: 'POST', body: JSON.stringify({ backend: formProfile() }) });
+      if (!r.ok) result(`Failed: ${r.error}`, 'bad');
+      else result(`Answered in ${r.ms} ms · ${r.model}${r.served ? ` · serving ${r.served}` : ''} · "Is the writer frustrated?" yes ${Math.round(r.noul * 100)}%${r.cost != null ? ` · ${money(r.cost)}` : ''}`, 'ok');
+    } catch (err) { result(`Failed: ${err.message}`, 'bad'); }
+    $('test').disabled = false;
+  });
+  $('edit').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const edited = formProfile();
+    const list = settings.backends.map((p) => (p.id === editing ? edited : strip(p)));
+    try {
+      settings = await api('/api/settings', { method: 'PUT', body: JSON.stringify({ active: editing, backends: list }) });
+      renderBackends(); fillForm();
+      result('Saved. New sifts use this backend.', 'ok');
+      loadMeta();
+    } catch (err) { result(`Not saved: ${err.message}`, 'bad'); }
+  });
+  $('remove').addEventListener('click', async () => {
+    const list = settings.backends.filter((p) => p.id !== editing).map(strip);
+    const active = settings.active === editing ? 'openrouter' : settings.active;
+    try {
+      settings = await api('/api/settings', { method: 'PUT', body: JSON.stringify({ active, backends: list }) });
+      editing = settings.active; renderBackends(); fillForm(); loadMeta();
+      result('Removed.', 'ok');
+    } catch (err) { result(`Not removed: ${err.message}`, 'bad'); }
+  });
+
   setMode('ask');
   loadMeta();
+  if (location.hash === '#settings') showView('settings');
 })();
 </script>
 </body>
