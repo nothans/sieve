@@ -55,12 +55,16 @@
 
   header.top { border-bottom: 1px solid var(--line); background: var(--surface); }
   header.top .wrap { display: flex; align-items: baseline; gap: 16px; padding-top: 16px; padding-bottom: 14px; flex-wrap: wrap; }
-  .mark { font: 700 22px/1 var(--display); letter-spacing: -.01em; margin: 0; }
-  .mark span { color: var(--accent-text); }
+  .mark { margin: 0; line-height: 0; align-self: center; }
+  .mark svg { display: block; height: 30px; width: auto; }
+  .mark .word { fill: var(--text); font: 700 24px var(--display); }
+  .mark .v { fill: var(--accent); }
   .tagline { color: var(--muted); font-size: 14px; margin: 0; }
   .meta { margin-left: auto; color: var(--faint); font-size: 13px; font-family: var(--mono); }
-  .theme-toggle { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; font: 13px var(--body); padding: 4px 10px; cursor: pointer; }
-  .theme-toggle:hover { color: var(--text); border-color: var(--line-strong); }
+  .icon-btn { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: 8px; border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; }
+  .icon-btn:hover { color: var(--text); border-color: var(--line); }
+  .icon-btn[aria-expanded="true"] { color: var(--text); background: var(--accent-weak); border-color: var(--accent); }
+  .icon-btn svg { width: 20px; height: 20px; }
 
   main { padding: 32px 0 80px; }
 
@@ -140,12 +144,17 @@
   .examples { display: flex; flex-wrap: wrap; gap: 8px; }
   .examples .chip { font-size: 14px; padding: 6px 14px; }
 
-  .views { display: inline-flex; gap: 2px; border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
-  .views button { font: 600 13px var(--body); border: 0; background: none; color: var(--muted); padding: 4px 12px; border-radius: 6px; cursor: pointer; }
-  .views button:hover { color: var(--text); }
-  .views button[aria-current="page"] { background: var(--accent-weak); color: var(--text); }
+  .settings-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+  .settings-head h2 { margin: 0; }
+  .settings h2.section { font: 700 16px/1.3 var(--display); margin: 40px 0 12px; padding-top: 24px; border-top: 1px solid var(--line); }
+  .segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .segmented button { font: 14px var(--body); border: 0; background: var(--surface); color: var(--muted); padding: 7px 16px; cursor: pointer; }
+  .segmented button + button { border-left: 1px solid var(--line); }
+  .segmented button:hover { color: var(--text); }
+  .segmented button[aria-pressed="true"] { background: var(--accent-weak); color: var(--text); font-weight: 600; }
   .settings { padding-top: 32px; padding-bottom: 80px; }
   .settings h2 { font: 700 20px/1.3 var(--display); margin: 0 0 8px; }
+  .settings-head + h2.section { border-top: 0; padding-top: 0; margin-top: 20px; }
   .settings h3 { font: 700 16px/1.3 var(--display); margin: 0 0 16px; }
   .settings .lede { color: var(--muted); max-width: 72ch; margin: 0 0 24px; font-size: 15px; }
   .backends { display: grid; gap: 8px; margin-bottom: 12px; }
@@ -176,9 +185,12 @@
   .result.ok { color: var(--text); }
   .result.bad { color: var(--error); }
   @media (max-width: 640px) {
+    header.top .wrap { position: relative; }
+    #gear { position: absolute; top: 10px; right: 12px; }
     .grid { grid-template-columns: 1fr; }
     .grid label.wide { grid-column: auto; }
     .wrap { padding: 0 16px; }
+    .settings { padding-top: 24px; }
     .meta { margin-left: 0; flex: 1; }
     .ask-row { flex-direction: column; }
     .go { padding: 12px; }
@@ -194,14 +206,24 @@
 <body>
 <header class="top">
   <div class="wrap">
-    <h1 class="mark">Sie<span>v</span>e</h1>
+    <h1 class="mark">
+      <svg viewBox="0 0 70 28" role="img" aria-labelledby="logo-title">
+        <title id="logo-title">Sieve</title>
+        <text class="word" x="0" y="22" textLength="35" lengthAdjust="spacingAndGlyphs">Sie</text>
+        <g class="v" aria-hidden="true">
+          <circle cx="39" cy="10.5" r="2.2"/><circle cx="45" cy="10.5" r="2.2"/><circle cx="51" cy="10.5" r="2.2"/>
+          <circle cx="42" cy="16" r="2.2"/><circle cx="48" cy="16" r="2.2"/>
+          <circle cx="45" cy="21.5" r="2.2"/>
+        </g>
+        <text class="word" x="55.5" y="22" textLength="14" lengthAdjust="spacingAndGlyphs">e</text>
+      </svg>
+    </h1>
     <p class="tagline" id="tagline">Sift everything in the corpus by one question.</p>
     <span class="meta" id="meta">loading corpus...</span>
-    <nav class="views" aria-label="Views">
-      <button type="button" data-view="sift" aria-current="page">Sift</button>
-      <button type="button" data-view="settings">Settings</button>
-    </nav>
-    <button class="theme-toggle" id="theme" type="button" aria-label="Switch color theme">Theme</button>
+    <button class="icon-btn" id="gear" type="button" aria-label="Settings" aria-expanded="false" aria-controls="view-settings" title="Settings">
+      <!-- gear: Feather "settings" icon (MIT) -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
   </div>
 </header>
 
@@ -256,7 +278,20 @@
 </main>
 
 <section class="wrap settings" id="view-settings" hidden aria-labelledby="settings-title">
-  <h2 id="settings-title">Backend</h2>
+  <div class="settings-head">
+    <h2 id="settings-title">Settings</h2>
+    <button class="icon-btn" id="close-settings" type="button" aria-label="Close settings" title="Close (Esc)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <h2 class="section">Appearance</h2>
+  <div class="segmented" id="theme-choice" role="group" aria-label="Color theme">
+    <button type="button" data-theme="system" aria-pressed="true">System</button>
+    <button type="button" data-theme="light" aria-pressed="false">Light</button>
+    <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+  </div>
+
+  <h2 class="section">Backend</h2>
   <p class="lede">Where Sieve sends its questions. Jev runs in the cloud through OpenRouter or TypeSafe; a local server (Kev, Laya, openjev) keeps your notes on this machine. Keys are read from environment variables or the <code>.env</code> file and never stored here.</p>
   <div class="backends" id="backends" role="group" aria-label="Backends. Choose one to edit."></div>
   <button type="button" class="more add" id="add-backend">Add a local server</button>
@@ -296,13 +331,16 @@
 
   // Theme toggle: remembered per browser, never required.
   const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
-  const savedTheme = store.get('sieve-theme');
-  if (savedTheme) document.documentElement.dataset.theme = savedTheme;
-  $('theme').addEventListener('click', () => {
-    const dark = getComputedStyle(document.documentElement).colorScheme.includes('dark');
-    const next = dark ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
-    store.set('sieve-theme', next);
+  function applyTheme(t) {
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    else delete document.documentElement.dataset.theme;
+    for (const b of document.querySelectorAll('#theme-choice button')) b.setAttribute('aria-pressed', String(b.dataset.theme === (t || 'system')));
+  }
+  applyTheme(store.get('sieve-theme') || 'system');
+  $('theme-choice').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    applyTheme(b.dataset.theme);
+    store.set('sieve-theme', b.dataset.theme);
   });
 
   function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -549,15 +587,17 @@
     .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j; });
 
   function showView(v) {
-    for (const b of document.querySelectorAll('.views button')) {
-      if (b.dataset.view === v) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
-    }
+    $('gear').setAttribute('aria-expanded', String(v === 'settings'));
     $('view-sift').hidden = v !== 'sift';
     $('view-settings').hidden = v !== 'settings';
     if (v === 'settings') loadSettings();
     try { history.replaceState(null, '', v === 'settings' ? '#settings' : location.pathname); } catch {}
   }
-  document.querySelector('.views').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) showView(b.dataset.view); });
+  $('gear').addEventListener('click', () => showView($('view-settings').hidden ? 'settings' : 'sift'));
+  $('close-settings').addEventListener('click', () => { showView('sift'); $('gear').focus(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !$('view-settings').hidden) { showView('sift'); $('gear').focus(); }
+  });
 
   async function loadSettings() {
     try {

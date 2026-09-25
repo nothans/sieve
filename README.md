@@ -5,7 +5,7 @@
 Point Sieve at a folder of Markdown (research notes, briefs, a blog, a knowledge base, 313 of Aesop's fables) and ask it anything in plain words: "security risks of AI agents", "a trick that backfires on the trickster", "a hands-on build I could demo at a meetup".
 Every item gets the same typed question, [Jev](https://openrouter.ai/docs/guides/community/jev) answers each one with a calibrated probability, and Sieve ranks the whole corpus by the answer while you watch.
 
-![Sieve asking all 313 of Aesop's fables "a trick that backfires on the trickster": 20 requests, 1.4 seconds, $0.0036](docs/images/sieve-ask.png)
+![Sieve asking all 313 of Aesop's fables "someone boasts and is proven wrong": 20 requests, 1.1 seconds, $0.0035](docs/images/sieve-ask.png)
 
 - **Fast enough to feel like search.** Items are packed 16 to a request and requests run 16 at a time. A 1,140-item research notebook comes back in 2-3 seconds, streaming.
 - **Cheap enough to ask everything.** Jev bills input tokens only, at $0.042 per million. A full sweep of that notebook costs about 2.5 cents.
