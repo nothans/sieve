@@ -54,7 +54,7 @@
   },
   "presets": [
     { "id": "ask" },
-    { "id": "moral", "lens": "moral", "title": "Moral", "group": true, "hint": "Files every fable under its main lesson, ranked by Jev's confidence. Filter by lesson with the counts above the list." },
+    { "id": "moral", "lens": "moral", "title": "Moral", "group": true, "hint": "Files every fable under its main lesson, ranked by confidence. Filter by lesson with the counts above the list." },
     { "id": "harsh", "lens": "harsh", "title": "Harshness", "hint": "Scores each fable on a four-step scale, from 'ends well' to 'death or ruin'." },
     { "id": "bedtime", "lens": "bedtime", "title": "Bedtime-safe", "hint": "Asks of each fable: gentle enough for a five-year-old at bedtime?" }
   ],

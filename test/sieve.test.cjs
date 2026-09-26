@@ -127,7 +127,13 @@ test('buildCorpus reads every source mode from a config', () => {
   assert.equal(c[5].title, 'Calibration is unproven');
   assert.equal(c[6].title, 'My Post');
   assert.equal(c[7].path, 'talks/t1/README.md');
-  assert.ok(c.every((i, n) => i.id === `i${n}` && i.ref === `${i.path}:${i.line}`));
+  assert.ok(c.every((i) => /^i[0-9a-f]{10}$/.test(i.id) && i.ref === `${i.path}:${i.line}`));
+  assert.equal(new Set(c.map((i) => i.id)).size, c.length);
+  // A note added ahead of the others must not shift anyone's id (the server re-indexes live).
+  fs.writeFileSync(path.join(root, 'briefs/2026-01_early.md'), '# Early\n\n**Date:** 2026-01-02\n\nAn earlier brief with enough words to count as an item.');
+  const again = buildCorpus(config);
+  assert.equal(again.length, c.length + 1);
+  for (const it of c) assert.equal(again.find((x) => x.id === it.id)?.ref, it.ref);
 });
 
 test('loadConfig resolves paths against the config file and checks references', () => {
@@ -369,7 +375,7 @@ test('server: localhost only, same-origin API, backend settings, one sift at a t
     await new Promise((r) => setTimeout(r, 50));
     assert.equal((await fetch(base + '/api/sift?preset=ask&q=topic')).status, 429);
     const stream = await first;
-    assert.match(stream, /event: done\ndata: \{"items":2,"requests":1/);
+    assert.match(stream, /event: done\ndata: \{"sid":"s1","items":2,"requests":1/);
     assert.equal(seen[0].auth, undefined); // no key configured: no Authorization header sent
     assert.equal(seen[0].body.model, 'fake');
 

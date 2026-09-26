@@ -13,8 +13,9 @@
      one accent for the primary action, the current selection, and the value bars. */
   :root {
     --bg: #f3f5f8; --surface: #fbfcfd; --line: #d9dee5; --line-strong: #bcc4ce;
-    --text: #1b1f24; --muted: #56606b; --faint: #7a848f;
+    --text: #1b1f24; --muted: #56606b; --faint: #5f6872;
     --accent: #1585b5; --accent-text: #0e6a93; --accent-weak: #e2eff6; --on-accent: #fbfcfd;
+    --go: #0e6a93; --go-hover: #0b5a7d;
     --warn: #9a5a12; --error: #a3291d; --error-weak: #fbe9e7;
     --bar-track: #e6eaef;
     --shadow: 0 6px 24px -12px rgba(20, 40, 60, .25);
@@ -27,8 +28,9 @@
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #1e2124; --surface: #25292d; --line: #353a40; --line-strong: #4a5058;
-      --text: #e7eaed; --muted: #a2abb5; --faint: #7f8893;
+      --text: #e7eaed; --muted: #a2abb5; --faint: #959ea8;
       --accent: #1585b5; --accent-text: #5fb2dd; --accent-weak: #1f3542; --on-accent: #f4f8fb;
+      --go: #106f98; --go-hover: #0e6a93;
       --warn: #e0a15a; --error: #f08a7e; --error-weak: #3a2524;
       --bar-track: #30353b;
       --shadow: 0 8px 28px -14px rgba(0, 0, 0, .6);
@@ -37,8 +39,9 @@
   }
   :root[data-theme="dark"] {
     --bg: #1e2124; --surface: #25292d; --line: #353a40; --line-strong: #4a5058;
-    --text: #e7eaed; --muted: #a2abb5; --faint: #7f8893;
+    --text: #e7eaed; --muted: #a2abb5; --faint: #959ea8;
     --accent: #1585b5; --accent-text: #5fb2dd; --accent-weak: #1f3542; --on-accent: #f4f8fb;
+      --go: #106f98; --go-hover: #0e6a93;
     --warn: #e0a15a; --error: #f08a7e; --error-weak: #3a2524;
     --bar-track: #30353b;
     --shadow: 0 8px 28px -14px rgba(0, 0, 0, .6);
@@ -47,7 +50,7 @@
 
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
-  html { -webkit-text-size-adjust: 100%; }
+  html { -webkit-text-size-adjust: 100%; scrollbar-gutter: stable; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 var(--body); }
   a { color: var(--accent-text); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
@@ -72,13 +75,16 @@
   .modes { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
   .mode { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); font: 600 14px var(--body); padding: 8px 12px 10px; cursor: pointer; margin-bottom: -1px; }
   .mode:hover { color: var(--text); }
-  .mode[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
-  .ask-row { display: flex; gap: 8px; }
+  .mode[aria-pressed="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  .ask-row { display: flex; gap: 8px; align-items: flex-start; }
+  .ask-inputs { flex: 1; min-width: 0; display: grid; gap: 8px; }
+  #a-row:has(#q[hidden]) { display: none; }
+  .ask-inputs:has(#q[hidden]):has(#vs-row[hidden]) { display: none; }
   .ask-row input[type=text] { flex: 1; min-width: 0; font: 18px/1.3 var(--body); padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); color: var(--text); }
   .ask-row input[type=text]::placeholder { color: var(--faint); }
-  .ask-row input[type=text]:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
-  .go { font: 700 16px var(--body); padding: 12px 22px; border-radius: 10px; border: 0; background: var(--accent); color: var(--on-accent); cursor: pointer; transition: background-color .15s var(--ease); }
-  .go:hover { background: #106f98; }
+  .ask-row input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+  .go { font: 700 16px var(--body); padding: 12px 22px; border-radius: 10px; border: 0; background: var(--go); color: var(--on-accent); cursor: pointer; transition: background-color .15s var(--ease); }
+  .go:hover { background: var(--go-hover); }
   .go:active { transform: translateY(1px); }
   .go:disabled { background: var(--line-strong); color: var(--muted); cursor: not-allowed; transform: none; }
   .mode-help { color: var(--muted); font-size: 14px; margin: 10px 2px 0; max-width: 72ch; }
@@ -108,7 +114,7 @@
 
   /* Results */
   .toolbar { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin: 24px 0 8px; font-size: 14px; color: var(--muted); }
-  .toolbar input[type=range] { width: 160px; accent-color: var(--accent); vertical-align: middle; }
+  .toolbar input[type=range] { width: 160px; accent-color: var(--accent); vertical-align: middle; } .toolbar label { white-space: nowrap; } .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } .dist .zero { color: var(--faint); }
   .toolbar output { font-family: var(--mono); color: var(--text); }
   ol.results { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
   ol.results:empty { border-top: 0; }
@@ -131,13 +137,66 @@
   .dist .k { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dist .p { font-family: var(--mono); text-align: right; color: var(--muted); }
   .dist .bar { height: 5px; }
-  .dist h4 { grid-column: 1 / -1; margin: 6px 0 0; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); }
+  .dist h3 { grid-column: 1 / -1; margin: 6px 0 0; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--faint); }
   .saw { font-size: 14px; color: var(--muted); white-space: pre-wrap; max-height: 260px; overflow: auto; border-left: 2px solid var(--line); padding: 2px 0 2px 14px; max-width: 80ch; }
   .groups { display: flex; flex-wrap: wrap; gap: 6px; margin: 16px 0 4px; }
   .skeleton .score .num, .skeleton .title, .skeleton .sub { background: var(--bar-track); color: transparent; border-radius: 4px; }
   .skeleton .title { display: block; height: 18px; width: 60%; }
   .skeleton .sub { height: 13px; width: 40%; }
   .show-more { margin: 20px auto 0; display: block; }
+  .link-btn { background: none; border: 0; padding: 0; font: 13px var(--body); color: var(--accent-text); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+  .link-btn:hover { color: var(--text); }
+  .vs-row { display: flex; align-items: center; gap: 10px; }
+  .vs-row .tag { font: 600 12px var(--mono); color: var(--faint); width: 22px; text-align: right; flex: none; }
+  .crumbs { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 20px 0 0; font-size: 14px; color: var(--muted); }
+  .crumbs .sep { color: var(--faint); }
+  .crumbs .here { color: var(--text); font-weight: 600; }
+  .crumbs .cut { font: 12px var(--mono); color: var(--faint); }
+  .export { margin-left: auto; display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .export .copied { font-size: 13px; color: var(--accent-text); }
+  .narrow { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; margin: 4px 0 16px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .narrow label { font-size: 14px; color: var(--muted); }
+  .narrow input { flex: 1; min-width: 220px; font: 15px var(--body); padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--text); }
+  .narrow input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+  .narrow .go { padding: 8px 16px; font-size: 14px; }
+  .busy-note { margin: 16px 0 0; font-size: 14px; color: var(--warn); }
+  .stale { font-size: 14px; color: var(--warn); }
+  .estimate.hint { color: var(--warn); }
+  .setup { margin: 8px 0 28px; padding: 18px 20px; border-radius: 12px; background: var(--accent-weak); font-size: 15px; }
+  .setup h2 { font: 700 18px/1.3 var(--display); margin: 0 0 8px; }
+  .setup p { margin: 0 0 10px; color: var(--muted); max-width: 72ch; }
+  .setup ol { margin: 0 0 12px; padding-left: 22px; max-width: 72ch; }
+  .setup li { margin-bottom: 6px; }
+  .setup code { font: 13px var(--mono); background: var(--surface); padding: 1px 6px; border-radius: 4px; overflow-wrap: anywhere; }
+  .status-line .notice { display: block; flex: 1 1 100%; }
+  .estimate { margin: 8px 2px 0; min-height: 1.5em; font: 13px/1.5 var(--mono); color: var(--faint); }
+  .preview { margin: 10px 2px 0; font-size: 14px; color: var(--muted); max-width: 80ch; display: grid; gap: 4px; }
+  .preview q { color: var(--text); }
+  .preview .opt { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .meaning { margin: 2px 0 0; font-size: 13px; color: var(--muted); max-width: 90ch; }
+  .meaning b { color: var(--text); font-weight: 600; }
+  .nothing { padding: 20px 4px 8px; border-top: 1px solid var(--line); }
+  .nothing p { margin: 0 0 12px; color: var(--muted); max-width: 72ch; }
+  .nothing p strong { color: var(--text); }
+  .nothing .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  button.title { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+  .steps { margin: 0 0 8px; padding-left: 22px; max-width: 72ch; color: var(--muted); }
+  .steps li { margin-bottom: 8px; padding-left: 4px; }
+  .steps b { color: var(--text); }
+  .empty h3 { font: 700 15px/1.3 var(--display); margin: 28px 0 10px; }
+  .empty .more-help { margin: 28px 0 0; font-size: 14px; color: var(--muted); }
+  .help { padding-top: 32px; padding-bottom: 80px; }
+  .help-body { max-width: 74ch; font-size: 15px; }
+  .help-body h3 { font: 700 17px/1.3 var(--display); margin: 32px 0 8px; }
+  .help-body p, .help-body ul, .help-body ol { margin: 0 0 12px; color: var(--muted); }
+  .help-body li { margin-bottom: 6px; }
+  .help-body b, .help-body strong { color: var(--text); }
+  .help-body dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 12px; color: var(--muted); }
+  .help-body dt { color: var(--text); font-weight: 600; }
+  .help-body dd { margin: 0; }
+  kbd { font: 12px var(--mono); padding: 1px 6px; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--surface); color: var(--text); }
+  a.more { text-decoration: none; display: inline-block; }
+  .detail-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--faint); }
 
   .empty h2 { font: 700 20px/1.3 var(--display); margin: 40px 0 8px; }
   .empty p { color: var(--muted); max-width: 64ch; margin: 0 0 16px; }
@@ -158,14 +217,14 @@
   .settings h3 { font: 700 16px/1.3 var(--display); margin: 0 0 16px; }
   .settings .lede { color: var(--muted); max-width: 72ch; margin: 0 0 24px; font-size: 15px; }
   .backends { display: grid; gap: 8px; margin-bottom: 12px; }
-  .backend { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 14px; align-items: center; text-align: left; padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font: 14px var(--body); cursor: pointer; }
+  .backend { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; align-items: center; text-align: left; padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--text); font: 14px var(--body); cursor: pointer; }
   .backend:hover { border-color: var(--line-strong); }
   .backend[data-active="true"] { border-color: var(--accent); background: var(--accent-weak); }
-  .backend[aria-pressed="true"] { outline: 2px solid var(--line-strong); outline-offset: 2px; }
-  .backend .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line-strong); box-sizing: border-box; }
-  .backend[data-active="true"] .dot { border: 4px solid var(--accent); }
+  .backend[aria-pressed="true"] { border-color: var(--line-strong); background: var(--bg); }  .backend[data-active="true"][aria-pressed="true"] { border-color: var(--accent); }
+  
+  
   .backend .name { font-weight: 600; }
-  .backend .sub { grid-column: 2; font: 12px var(--mono); color: var(--faint); overflow-wrap: anywhere; }
+  .backend .sub { grid-column: 1 / -1; font: 12px var(--mono); color: var(--faint); overflow-wrap: anywhere; }
   .backend .tag { font-size: 12px; color: var(--muted); }
   .backend .tag.editing { color: var(--accent-text); font-weight: 600; }
   .add { margin-bottom: 28px; }
@@ -174,7 +233,7 @@
   .grid label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(--muted); align-content: start; }
   .grid label.wide { grid-column: span 2; }
   .grid input { font: 15px var(--body); padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--text); min-width: 0; }
-  .grid input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+  .grid input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
   .grid small { font-weight: 400; color: var(--faint); font-size: 12px; }
   .grid small.ok { color: var(--accent-text); }
   .grid small.bad { color: var(--error); }
@@ -185,20 +244,37 @@
   .result.ok { color: var(--text); }
   .result.bad { color: var(--error); }
   @media (max-width: 640px) {
+    .help-body dl { grid-template-columns: 1fr; gap: 2px; }
+    .meta { display: none; }
+    .modes { flex-wrap: nowrap; overflow-x: auto; }
+    .mode { white-space: nowrap; }
+    .ask-row input[type=text] { font-size: 16px; }
+    .saw { max-height: none; }
+    .toolbar input[type=range] { width: 96px; }
+    .toolbar label { font-size: 13px; }
+    .help-body dd { margin-bottom: 10px; }
+    .help { padding-top: 24px; }
     header.top .wrap { position: relative; }
     #gear { position: absolute; top: 10px; right: 12px; }
+    #help-btn { position: absolute; top: 10px; right: 52px; }
     .grid { grid-template-columns: 1fr; }
     .grid label.wide { grid-column: auto; }
     .wrap { padding: 0 16px; }
     .settings { padding-top: 24px; }
     .meta { margin-left: 0; flex: 1; }
-    .ask-row { flex-direction: column; }
+    .ask-row { flex-direction: column; align-items: stretch; }
     .go { padding: 12px; }
     .row { grid-template-columns: 1fr auto; }
     .score { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; }
     .score .num { margin: 0; }
     .score .bar { flex: 1; }
     .detail { grid-column: 1 / -1; }
+  }
+  /* Touch screens: controls big enough for a thumb, and no editor links that cannot open. */
+  @media (pointer: coarse) {
+    .more, .chip, .answer-as button, .link-btn { min-height: 36px; }
+    .link-btn { padding: 8px 0; }
+    a.vscode { display: none; }
   }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -220,6 +296,10 @@
     </h1>
     <p class="tagline" id="tagline">Sift everything in the corpus by one question.</p>
     <span class="meta" id="meta">loading corpus...</span>
+    <button class="icon-btn" id="help-btn" type="button" aria-label="How to use Sieve" aria-expanded="false" aria-controls="view-help" title="How to use Sieve (?)">
+      <!-- help: Feather "help-circle" icon (MIT) -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    </button>
     <button class="icon-btn" id="gear" type="button" aria-label="Settings" aria-expanded="false" aria-controls="view-settings" title="Settings">
       <!-- gear: Feather "settings" icon (MIT) -->
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -228,23 +308,39 @@
 </header>
 
 <main class="wrap" id="view-sift">
-  <div class="modes" id="modes" role="tablist" aria-label="What to sift by">
-    <button class="mode" role="tab" data-mode="ask" aria-selected="true">Ask anything</button>
+  <section class="setup" id="setup" hidden aria-labelledby="setup-title">
+    <h2 id="setup-title">One step before your first sift</h2>
+    <div id="setup-text"></div>
+  </section>
+  <div class="modes" id="modes" role="group" aria-label="What to sift by">
+    <button type="button" class="mode" data-mode="ask" aria-pressed="true">Ask anything</button>
   </div>
 
   <form id="form" autocomplete="off">
     <div class="ask-row">
-      <input type="text" id="q" name="q" maxlength="300" aria-label="Your question" placeholder="describe what you are looking for">
+      <div class="ask-inputs">
+        <div class="vs-row" id="a-row">
+          <span class="tag" id="a-tag" aria-hidden="true" hidden>A</span>
+          <input type="text" id="q" name="q" maxlength="300" aria-label="Your question" placeholder="describe what you are looking for">
+        </div>
+        <div class="vs-row" id="vs-row" hidden>
+          <span class="tag" aria-hidden="true">B</span>
+          <input type="text" id="vs" maxlength="300" aria-label="A second wording to compare" placeholder="a second wording of the same question">
+        </div>
+      </div>
       <button class="go" id="go" type="submit">Sift</button>
     </div>
+    <p class="estimate" id="estimate" aria-live="polite"></p>
     <p class="mode-help" id="help"></p>
+    <div class="preview" id="preview" hidden></div>
     <div class="filters">
       <div id="answer-as-wrap"><span class="field-label">Answer as</span>
         <span class="answer-as" role="group" aria-label="Answer type">
-          <button type="button" data-type="noul" aria-pressed="true">Yes / no</button>
-          <button type="button" data-type="score" aria-pressed="false">Scale</button>
+          <button type="button" data-type="noul" aria-pressed="true" title="Does each item match? Ranked by the chance of yes.">Yes / no</button>
+          <button type="button" data-type="score" aria-pressed="false" title="How closely does each item match: unrelated, in passing, clearly relevant, or squarely about it?">4-step scale</button>
         </span>
       </div>
+      <div id="vs-toggle-wrap"><button type="button" class="link-btn" id="vs-toggle" aria-expanded="false" aria-controls="vs-row">Compare with a second wording</button></div>
       <div id="since-wrap" hidden><label class="field-label" for="since">Dated</label>
         <select id="since">
           <option value="">any time</option>
@@ -253,29 +349,62 @@
           <option value="365">last year</option>
         </select>
       </div>
-      <div><span class="field-label">Kinds</span><span class="chips" id="kinds" role="group" aria-label="Item kinds"></span></div>
+      <div id="kinds-wrap"><span class="field-label">Kinds</span><span class="chips" id="kinds" role="group" aria-label="Item kinds"></span></div>
     </div>
   </form>
 
+  <p class="busy-note" id="busy-note" role="status" hidden></p>
   <section class="status" id="status" hidden aria-live="polite">
     <div class="status-line"><span id="status-text"></span><span class="stats" id="stats"></span></div>
     <div class="progress" aria-hidden="true"><i id="progress"></i></div>
+    <p class="meaning" id="meaning" hidden></p>
   </section>
 
+  <nav class="crumbs" id="crumbs" hidden aria-label="Narrowing steps"></nav>
   <div id="groups" class="groups" hidden></div>
   <div class="toolbar" id="toolbar" hidden>
-    <label>Show at or above <input type="range" id="threshold" min="0" max="100" step="5" value="50"> <output id="threshold-out">50%</output></label>
+    <label>Show items scoring at least <input type="range" id="threshold" min="0" max="100" step="5" value="50"> <output id="threshold-out">50%</output></label>
     <span id="count"></span>
+    <span class="stale" id="stale" hidden>The filters now include items this sift did not ask about. <button type="button" class="link-btn" id="stale-go">Sift again</button></span>
+    <span class="export" id="export" hidden>
+      <button type="button" class="more" data-export="md" title="Copy the rows shown as a Markdown list">Copy Markdown</button>
+      <button type="button" class="more" data-export="csv" title="Download the rows shown as CSV">Download CSV</button>
+      <button type="button" class="more" data-export="json" title="Download the rows shown, with every probability, as JSON">Download JSON</button>
+      <span class="copied" id="copied" role="status" aria-live="polite"></span>
+    </span>
   </div>
-  <ol class="results" id="results"></ol>
+  <form class="narrow" id="narrow" hidden autocomplete="off">
+    <label for="narrow-q" id="narrow-label">Then ask of these:</label>
+    <input type="text" id="narrow-q" maxlength="300" placeholder="a follow-up question for only these items">
+    <button class="go" type="submit" id="narrow-go">Narrow</button>
+  </form>
+  <div class="nothing" id="nothing" hidden></div>
+  <h2 class="sr-only" id="results-title">Results</h2>
+  <ol class="results" id="results" aria-labelledby="results-title"></ol>
   <button class="more show-more" id="show-more" type="button" hidden>Show more</button>
 
   <section class="empty" id="empty">
-    <h2>Try a question</h2>
-    <p>Every item in the corpus gets the same typed question. Jev answers each one with a probability, in a few seconds, for a few cents.</p>
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li><b>Describe what you are looking for, in plain words.</b> A short phrase in the words the items themselves would use works best; keywords work less well.</li>
+      <li><b>Every item gets the same question.</b> <span id="empty-text">The model answers each one with a probability.</span></li>
+      <li><b>Read the ranking.</b> Open any result to see what the model read and why it scored that way, find items related to it, or narrow the list with a follow-up question.</li>
+    </ol>
+    <h3>Try one of these</h3>
     <div class="examples" id="examples"></div>
+    <p class="more-help">The other tabs ask a question already written for you. <button type="button" class="link-btn" id="empty-help">How to use Sieve</button></p>
   </section>
 </main>
+
+<section class="wrap help" id="view-help" hidden aria-labelledby="help-title">
+  <div class="settings-head">
+    <h2 id="help-title">How to use Sieve</h2>
+    <button class="icon-btn" id="close-help" type="button" aria-label="Close help" title="Close (Esc)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="help-body" id="help-body"></div>
+</section>
 
 <section class="wrap settings" id="view-settings" hidden aria-labelledby="settings-title">
   <div class="settings-head">
@@ -292,7 +421,7 @@
   </div>
 
   <h2 class="section">Backend</h2>
-  <p class="lede">Where Sieve sends its questions. Jev runs in the cloud through OpenRouter or TypeSafe; a local server (Kev, Laya, openjev) keeps your notes on this machine. Keys are read from environment variables or the <code>.env</code> file and never stored here.</p>
+  <p class="lede">Where Sieve sends its questions. Jev runs in the cloud through OpenRouter or TypeSafe; a local server (Kev, Laya, openjev) keeps your notes on this machine. Keys are read from environment variables or the <code>.env</code> file and never stored here. Click a backend to see its settings; <b>Save and use</b> switches Sieve to it.</p>
   <div class="backends" id="backends" role="group" aria-label="Backends. Choose one to edit."></div>
   <button type="button" class="more add" id="add-backend">Add a local server</button>
 
@@ -324,10 +453,19 @@
   let KIND_LABELS = {};
   const PAGE = 60;
 
-  let lensLabels = {};
-  let backendName = '';
-  let mode = 'ask', type = 'noul', meta = null, rows = [], total = 0, source = null, shown = PAGE, activeGroup = null, grouped = false;
+  let type = 'noul', meta = null, source = null, mode = 'ask', vsOpen = false;
   const kinds = new Set();
+
+  // Every tab keeps its own results, threshold, and narrowing steps, so switching tabs never shows
+  // another question's answers. A running sift keeps filling its own tab while you look elsewhere.
+  const views = {};
+  const newView = () => ({
+    q: '', rows: [], total: 0, shown: PAGE, threshold: 50, activeGroup: null, grouped: false, lensLabels: {},
+    backendName: '', sid: null, title: '', statusHtml: '', stats: '', progress: 0,
+    started: false, done: false, error: false, steps: [], anchor: null, help: '',
+  });
+  const viewFor = (m) => (views[m] ||= newView());
+  let V = viewFor('ask');
 
   // Theme toggle: remembered per browser, never required.
   const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
@@ -345,19 +483,112 @@
 
   function esc(s) { return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
   const pct = (v) => (v < 0 ? 'err' : `${Math.round(v * 100)}%`);
-  const money = (x) => `$${x < 0.0001 ? x.toFixed(6) : x < 0.01 ? x.toFixed(4) : x.toFixed(3)}`;
+  const money = (x) => (x === 0 ? '$0' : `$${x < 0.0001 ? x.toFixed(6) : x < 0.01 ? x.toFixed(4) : x.toFixed(3)}`);
+  const plural = (n, word) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`;
+
+  const RELATED = { title: 'Related', help: '', input: false, related: true };
+
+  function renderTabs() {
+    const list = [...meta.presets.map((p) => [p.id, p.title, p.hint]), ...(views.related?.anchor ? [['related', 'Related', `Items related to "${views.related.anchor.title}"`]] : [])];
+    $('modes').innerHTML = list.map(([id, title, hint]) => `<button type="button" class="mode" data-mode="${esc(id)}" aria-pressed="${id === mode}" title="${esc(hint || '')}">${esc(title)}</button>`).join('');
+  }
 
   function setMode(m) {
+    if (mode === 'ask' || MODES[mode]?.input) V.q = $('q').value;
     mode = m;
-    for (const b of document.querySelectorAll('.mode')) b.setAttribute('aria-selected', String(b.dataset.mode === m));
+    V = viewFor(m);
+    for (const b of document.querySelectorAll('.mode')) b.setAttribute('aria-pressed', String(b.dataset.mode === m));
     const cfg = MODES[m];
-    $('help').textContent = cfg.help;
+    $('help').textContent = V.help || (m === 'ask' ? askHelp() : cfg.help);
     $('q').hidden = !cfg.input;
     $('q').placeholder = cfg.placeholder || '';
-    if (!cfg.input) $('q').value = '';
+    $('q').value = cfg.input ? V.q : '';
     $('answer-as-wrap').hidden = !cfg.answerAs;
-    $('go').textContent = cfg.input ? 'Sift' : 'Sift the corpus';
+    $('vs-toggle-wrap').hidden = !cfg.answerAs;
+    $('vs-row').hidden = !(cfg.answerAs && vsOpen);
+    $('a-tag').hidden = !(cfg.answerAs && vsOpen);
+    $('go').textContent = 'Sift';
+    $('threshold').value = V.threshold;
+    $('threshold-out').textContent = `${V.threshold}%`;
+    renderPreview(cfg);
+    paint();
+    scheduleEstimate();
     if (cfg.input) $('q').focus();
+  }
+
+  // Before anything is spent, show what a preset tab will ask, and what it picks from.
+  // The corpus's own word for one item ("fable"), when it has just one kind.
+  function noun() {
+    const ks = meta ? Object.keys(meta.by) : [];
+    return ks.length === 1 ? String(KIND_LABELS[ks[0]] || ks[0]).replace(/s$/, '') : 'item';
+  }
+  function renderPreview(cfg) {
+    const asks = (cfg.asks || []).map((a) => a.split('this item').join(`this ${noun()}`));
+    let html = '';
+    if (asks.length === 1) html += `<span>Asks every ${noun()}: <q>${esc(asks[0])}</q></span>`;
+    else if (asks.length > 1) html += `<span>Asks every ${noun()} ${asks.length} questions at once: ${asks.map((a) => `<q>${esc(a)}</q>`).join(', ')}</span>`;
+    if (cfg.choices) html += `<span>Picks one of: <span class="opt">${cfg.choices.map(esc).join(' · ')}</span>. The chips above the results filter by pick.</span>`;
+    if (cfg.levels) html += `<span>On a ${cfg.levels.length}-step scale from <q>${esc(cfg.levels[0])}</q> to <q>${esc(cfg.levels[cfg.levels.length - 1])}</q>.</span>`;
+    $('preview').innerHTML = html;
+    $('preview').hidden = !html;
+    // The literal question says it better than a paraphrase, so the tab's hint steps aside.
+    $('help').hidden = Boolean(html);
+  }
+  // The Ask tab's explanation follows the answer type.
+  function askHelp() {
+    return type === 'score'
+      ? `Type what you are looking for in plain words. Each ${noun()} is placed on a 4-step scale, from unrelated to squarely about it, and results rank by where they land.`
+      : `Type what you are looking for in plain words. Each ${noun()} is asked whether it matches, and results rank by the chance of yes.`;
+  }
+
+  function emptyText() {
+    const b = meta?.backend;
+    if (!b) return 'The model answers each one with a probability.';
+    const cloud = b.kind === 'openrouter' || b.kind === 'typesafe';
+    return cloud
+      ? 'Jev answers each one with a probability, in seconds, for a fraction of a cent.'
+      : 'A model on this machine answers each one with a probability: private and free, but expect seconds per item.';
+  }
+
+  // The item kind in words, for "313 fables" rather than "313 items".
+  function itemsWord(n) {
+    const on = [...kinds];
+    const word = on.length === 1 ? KIND_LABELS[on[0]] || on[0] : 'items';
+    return n === 1 ? `1 ${word.replace(/s$/, '')}` : `${n.toLocaleString()} ${word}`;
+  }
+  const duration = (s) => (s < 2 ? 'a second or two' : s < 60 ? `about ${Math.round(s)} s` : s < 5400 ? `about ${Math.round(s / 60)} min` : `about ${(s / 3600).toFixed(1)} hours`);
+
+  // What the current question will take, from the server's free preflight: how many items, how
+  // many requests, roughly what it costs, and (once this backend has been timed) how long.
+  let estTimer = null, estSeq = 0;
+  function scheduleEstimate() { clearTimeout(estTimer); estTimer = setTimeout(refreshEstimate, 250); }
+  async function refreshEstimate() {
+    if (busy) return; // refreshed when the running sift finishes
+    const seq = ++estSeq;
+    $('estimate').classList.remove('hint');
+    const built = buildParams({ forEstimate: true });
+    if (!built.p) { $('estimate').textContent = built.hint || ''; return; }
+    if (meta?.setup) { $('estimate').textContent = ''; return; } // nothing can run until the key is set
+    let j;
+    try {
+      const res = await fetch(`/api/sift?${built.p}&check=1`);
+      j = await res.json();
+      if (seq !== estSeq) return;
+      // Busy elsewhere (another tab is sifting): try again shortly rather than leave a stale line.
+      if (res.status === 429) { $('estimate').textContent = 'Estimate waits for the running sift to finish.'; clearTimeout(estTimer); estTimer = setTimeout(refreshEstimate, 1500); return; }
+      if (!res.ok) { $('estimate').textContent = ''; return; }
+    } catch { return; }
+    const e = j.estimate || {};
+    const b = j.backend || {};
+    if (!j.items) { $('estimate').textContent = 'No items match these filters.'; return; }
+    const parts = [`Asks ${itemsWord(j.items)}${b.kind === 'local' && e.requests === j.items ? ' one at a time' : ''}`];
+    if (e.cost === 0) parts.push('free');
+    else if (e.cost != null) parts.push(e.cost < 0.001 ? 'under $0.001' : `about $${e.cost.toFixed(e.cost < 0.01 ? 3 : 2)}`);
+    if (e.seconds != null) parts.push(duration(e.seconds));
+    else if (b.kind === 'local') parts.push('time shown after the first sift');
+    else parts.push('a few seconds');
+    $('estimate').textContent = parts.join(' · ');
+    $('estimate').title = `${plural(e.requests, 'request')} to ${b.label}${e.cost ? '; answers already cached are free, so repeats cost less' : ''}`;
   }
 
   async function loadMeta() {
@@ -369,17 +600,41 @@
     }
     $('meta').textContent = `${meta.items.toLocaleString()} items · ${meta.backend.label}: ${meta.backend.model}`;
     $('tagline').textContent = meta.tagline;
+    $('empty-text').textContent = emptyText();
+    renderSetup(meta.setup);
     document.title = `Sieve · ${meta.name}`;
     KIND_LABELS = meta.kinds || {};
-    MODES = Object.fromEntries(meta.presets.map((p) => [p.id, { title: p.title, help: p.hint, input: p.input, optional: p.optional, placeholder: p.id === 'ask' ? (meta.examples[0] || 'describe what you are looking for') : p.placeholder, answerAs: p.answerAs, grouped: p.grouped }]));
-    $('modes').innerHTML = meta.presets.map((p) => `<button class="mode" role="tab" data-mode="${esc(p.id)}" aria-selected="false">${esc(p.title)}</button>`).join('');
+    MODES = Object.fromEntries(meta.presets.map((p) => [p.id, { title: p.title, help: p.hint, input: p.input, optional: p.optional, placeholder: p.id === 'ask' ? (meta.examples[0] ? 'e.g. ' + meta.examples[0] : 'describe what you are looking for') : p.placeholder, answerAs: p.answerAs, grouped: p.grouped, asks: p.asks, choices: p.choices, levels: p.levels }]));
+    MODES.related = RELATED;
+    if (!$('kinds').children.length) {
+      const order = [...Object.keys(KIND_LABELS), ...Object.keys(meta.by)].filter((k, i, a) => meta.by[k] && a.indexOf(k) === i);
+      $('kinds').innerHTML = order.map((k) => `<button type="button" class="chip" data-kind="${k}" aria-pressed="true">${esc(KIND_LABELS[k] || k)}<span class="n">${meta.by[k]}</span></button>`).join('');
+      for (const k of order) kinds.add(k);
+      // One kind of item leaves nothing to filter.
+      $('kinds-wrap').hidden = order.length < 2;
+    }
+    renderTabs();
     $('examples').innerHTML = meta.examples.map((x) => `<button type="button" class="chip">${esc(x)}</button>`).join('');
-    $('examples').parentElement.hidden = !meta.examples.length;
+    $('examples').hidden = !meta.examples.length;
     $('since-wrap').hidden = !meta.dated;
     setMode(MODES[mode] ? mode : meta.presets[0].id);
-    const order = [...Object.keys(KIND_LABELS), ...Object.keys(meta.by)].filter((k, i, a) => meta.by[k] && a.indexOf(k) === i);
-    $('kinds').innerHTML = order.map((k) => `<button type="button" class="chip" data-kind="${k}" aria-pressed="true">${esc(KIND_LABELS[k] || k)}<span class="n">${meta.by[k]}</span></button>`).join('');
-    for (const k of order) kinds.add(k);
+    if (!$('view-help').hidden) renderHelp();
+  }
+
+  // A backend that is not ready yet: the steps to fix it, in order, instead of one long sentence.
+  function renderSetup(s) {
+    $('setup').hidden = !s;
+    if (!s) return;
+    const key = `<code>${esc(s.keyEnv)}=...</code>`;
+    $('setup-text').innerHTML = `
+      <p>${esc(s.label)} needs an API key, and this machine does not have one yet.</p>
+      <ol>
+        ${s.kind === 'openrouter' ? '<li>Get a key at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Any OpenRouter account works; no TypeSafe account is needed.</li>' : '<li>Get a key from the provider.</li>'}
+        <li>Put ${key} on a line of a file named <code>.env</code> next to <code>sieve.cjs</code> (or set it in the environment).</li>
+        <li>Stop Sieve (<kbd>Ctrl</kbd>+<kbd>C</kbd> in its terminal) and start it again, then reload this page.</li>
+      </ol>
+      <p>Or keep everything on this machine with a local model: <button type="button" class="link-btn" id="setup-open">open Settings</button> and pick <b>Local server</b>.</p>`;
+    $('setup-open').addEventListener('click', () => showView('settings'));
   }
 
   function sinceParam() {
@@ -394,26 +649,98 @@
     return `vscode://file/${meta.root}/${r.path}:${r.line}`;
   }
 
-  const aboveThreshold = () => rows.filter((r) => r.value >= Number($('threshold').value) / 100);
-  function visible() {
-    return aboveThreshold().filter((r) => !grouped || !activeGroup || r.group === activeGroup);
+  // The Kinds and Dated filters apply to results already on screen, too, so they never look live
+  // while doing nothing. Widening them past what the sift asked calls for a new sift (see stale()).
+  function inFilters(r) {
+    if (!kinds.has(r.kind)) return false;
+    const since = sinceParam();
+    return !since || (r.date && r.date >= since);
+  }
+  function stale(v = V) {
+    if (!v.done || !v.asked) return false;
+    const since = sinceParam();
+    const widerSince = v.asked.since && (!since || since < v.asked.since);
+    return widerSince || [...kinds].some((k) => !v.asked.kinds.includes(k));
+  }
+  const aboveThreshold = (v = V) => v.rows.filter((r) => r.value >= v.threshold / 100 && inFilters(r));
+  const visible = (v = V) => aboveThreshold(v).filter((r) => !v.grouped || !v.activeGroup || r.group === v.activeGroup);
+
+  // Restore everything on screen from the current tab's view.
+  function paint() {
+    $('status').hidden = !V.statusHtml;
+    $('status-text').innerHTML = V.statusHtml;
+    $('stats').textContent = V.stats;
+    $('progress').style.width = `${V.progress}%`;
+    $('progress').parentElement.hidden = !V.started || V.done || V.error; // progress is for a running sift
+    $('empty').hidden = V.started || mode !== 'ask';
+    render();
   }
 
   function render() {
+    const has = V.started && !V.error;
+    $('toolbar').hidden = !has;
+    $('crumbs').hidden = !V.steps.length;
+    if (V.steps.length) renderCrumbs();
+    $('meaning').hidden = !(has && V.meaning);
+    $('meaning').innerHTML = V.meaning ? `<b>The percentage:</b> ${esc(V.meaning.split('each item').join(`each ${noun()}`))}` : '';
+    $('nothing').hidden = true;
+    if (!has) {
+      $('results').innerHTML = '';
+      $('groups').hidden = true;
+      $('narrow').hidden = true;
+      $('show-more').hidden = true;
+      return;
+    }
+    if (!V.rows.length && !V.done) { skeleton(); $('groups').hidden = true; $('narrow').hidden = true; $('export').hidden = true; $('count').textContent = ''; return; }
     const list = visible();
-    const slice = list.slice(0, shown);
+    const slice = list.slice(0, V.shown);
+    const oneKind = meta && Object.keys(meta.by).length < 2; // a kind on every row says nothing
+    if (V.done && !list.length) renderNothing();
     $('results').innerHTML = slice.map((r) => `
       <li class="row" data-id="${r.id}">
         <div class="score"><span class="num">${pct(r.value)}</span><div class="bar"><i style="width:${Math.max(0, r.value) * 100}%"></i></div></div>
         <div>
-          <a class="title" href="${esc(vscodeLink(r))}" title="Open in VS Code">${esc(r.title)}</a>
-          <div class="sub"><span class="kind">${esc(KIND_LABELS[r.kind] || r.kind)}</span><span>${esc(r.date || '')}</span><span class="label">${esc(r.label || '')}</span><code>${esc(r.path)}:${r.line}</code></div>
+          <button type="button" class="title" data-expand="${r.id}" title="Show why it scored this way">${esc(r.title)}</button>
+          <div class="sub">${oneKind ? '' : `<span class="kind">${esc(KIND_LABELS[r.kind] || r.kind)}</span>`}${r.date ? `<span>${esc(r.date)}</span>` : ''}${r.label ? `<span class="label">${esc(r.label)}</span>` : ''}<code>${esc(r.path)}:${r.line}</code></div>
         </div>
         <button class="more" type="button" data-expand="${r.id}" aria-expanded="false">Details</button>
       </li>`).join('');
-    $('show-more').hidden = list.length <= shown;
-    $('count').textContent = `${list.length.toLocaleString()} of ${rows.length.toLocaleString()} shown${activeGroup ? ` in ${activeGroup}` : ''}`;
-    if (grouped) renderGroups();
+    $('show-more').hidden = list.length <= V.shown;
+    $('count').textContent = `${list.length.toLocaleString()} of ${V.rows.length.toLocaleString()} shown${V.activeGroup ? ` in ${V.activeGroup}` : ''}`;
+    $('stale').hidden = !stale();
+    $('export').hidden = !list.length;
+    // Narrow only a finished sift, and only when there is something to narrow.
+    const canNarrow = V.done && V.sid && list.length > 0;
+    $('narrow').hidden = !canNarrow;
+    if (canNarrow) $('narrow-label').textContent = `Then ask of these ${list.length.toLocaleString()}:`;
+    if (V.grouped) renderGroups(); else $('groups').hidden = true;
+  }
+
+  // A finished sift with nothing above the bar: say why and offer the next step, instead of an
+  // empty list. Either nothing could be judged (a backend problem), or nothing scored high enough.
+  function renderNothing() {
+    const judged = V.rows.filter((r) => r.value >= 0);
+    let html;
+    if (!judged.length) {
+      html = `<p><strong>None of the ${itemsWord(V.rows.length)} could be judged.</strong> ${esc(V.reason || 'The backend did not answer.')}</p>
+        <div class="actions"><button type="button" class="more" data-act="settings">Open Settings</button></div>`;
+    } else {
+      const inGroup = V.activeGroup ? judged.filter((r) => r.group === V.activeGroup) : judged;
+      const best = inGroup[0] || judged[0];
+      const top = inGroup.slice(0, 10);
+      // The slider moves in 5% steps, so name what the new bar will really show.
+      const bar = Math.max(0, Math.floor((top[top.length - 1].value * 100) / 5) * 5);
+      const shows = inGroup.filter((r) => r.value >= bar / 100).length;
+      const barLabel = bar === 0 ? `Show all ${shows}, best first` : `Lower the bar to ${bar}% (${shows} ${shows === 1 ? noun() : noun() + 's'})`;
+      const faint = best.value < 0.2;
+      const advice = mode !== 'ask' ? ''
+        : faint ? 'Nothing here looks like a match. If you expected some, describe it in the words the items themselves would use.'
+        : 'The model reads literally, so a question in the words the items themselves use often scores higher than a paraphrase.';
+      html = `<p><strong>Nothing scored ${V.threshold}% or more${V.activeGroup ? ` in ${esc(V.activeGroup)}` : ''}.</strong> The closest is <q>${esc(best.title)}</q> at ${pct(best.value)}. ${advice}</p>
+        <div class="actions"><button type="button" class="more" data-act="bar" data-bar="${bar}">${barLabel}</button>${mode === 'ask' ? '<button type="button" class="more" data-act="reword">Try another wording side by side</button>' : ''}</div>`;
+    }
+    $('nothing').innerHTML = html;
+    $('nothing').hidden = false;
   }
 
   // Group counts follow the threshold, so a chapter only counts items that clear it.
@@ -423,8 +750,15 @@
     for (const r of passing) if (r.group) counts[r.group] = (counts[r.group] || 0) + 1;
     const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     $('groups').hidden = !entries.length;
-    $('groups').innerHTML = [`<button type="button" class="chip" data-group="" aria-pressed="${!activeGroup}">all<span class="n">${passing.length}</span></button>`]
-      .concat(entries.map(([g, n]) => `<button type="button" class="chip" data-group="${esc(g)}" aria-pressed="${activeGroup === g}">${esc(g)}<span class="n">${n}</span></button>`)).join('');
+    $('groups').innerHTML = [`<button type="button" class="chip" data-group="" aria-pressed="${!V.activeGroup}">all<span class="n">${passing.length}</span></button>`]
+      .concat(entries.map(([g, n]) => `<button type="button" class="chip" data-group="${esc(g)}" aria-pressed="${V.activeGroup === g}">${esc(g)}<span class="n">${n}</span></button>`)).join('');
+  }
+
+  // The narrowing path: each earlier step is a link back to its results.
+  function renderCrumbs() {
+    const cut = (c) => `<span class="cut">${c.min}%+${c.group ? ` · ${esc(c.group)}` : ''} · ${c.n}</span>`;
+    $('crumbs').innerHTML = V.steps.map((s, i) => `<button type="button" class="link-btn" data-step="${i}">${esc(s.view.title)}</button>${cut(s.cut)}<span class="sep" aria-hidden="true">›</span>`).join('')
+      + `<span class="here" aria-current="step">${esc(V.title || '...')}</span>`;
   }
 
   function skeleton() {
@@ -443,140 +777,326 @@
       hidden = entries.length - kept.length;
       entries = kept;
     }
-    return `<h4>${esc(title)}</h4>` + entries.map(([k, p]) => distRow(k, p)).join('')
-      + (hidden ? `<span class="k">+${hidden} more at 0%</span><span></span><span></span>` : '');
+    return `<h3>${esc(title)}</h3>` + entries.map(([k, p]) => distRow(k, p)).join('')
+      + (hidden ? `<span class="k zero">+${hidden} more at 0%</span><span></span><span></span>` : '');
   }
 
-  async function expand(btn) {
-    const li = btn.closest('.row');
+  // Opened from the Details button or the title; the Details button always shows the state.
+  async function expand(from) {
+    const li = from.closest('.row');
+    const btn = li.querySelector('.more[data-expand]');
     const open = li.querySelector('.detail');
     if (open) { open.remove(); btn.setAttribute('aria-expanded', 'false'); btn.textContent = 'Details'; return; }
-    const r = rows.find((x) => x.id === btn.dataset.expand);
+    const r = V.rows.find((x) => x.id === btn.dataset.expand);
     const det = document.createElement('div');
     det.className = 'detail';
     let dist = '';
     for (const [name, a] of Object.entries(r.answers || {})) {
       if (!a) continue;
-      const lens = name === 'q' ? '' : `${lensLabels[name] || name}: `;
-      if (a.type === 'noul') dist += `<h4>${esc(lens)}yes / no</h4>${distRow('yes', a.noul)}`;
+      const lens = name === 'q' ? '' : `${V.lensLabels[name] || name}: `;
+      if (a.type === 'noul') dist += `<h3>${esc(lens)}yes / no</h3>${distRow('yes', a.noul)}`;
       else dist += distHtml(`${lens}${a.type === 'score' ? 'scale' : 'choice'}, confidence ${Math.round(a.confidence * 100)}%`, a.probabilities, a.legend);
     }
-    det.innerHTML = `<div class="dist">${dist}</div><div class="saw" aria-label="What Jev read">loading what Jev read...</div>`;
+    det.innerHTML = `<div class="dist">${dist}</div>
+      <div class="saw" aria-label="The text the model read">loading the text the model read...</div>
+      <div class="detail-actions">
+        <button type="button" class="more" data-related="${esc(r.id)}">Find related</button>
+        <a class="more vscode" href="${esc(vscodeLink(r))}">Open in VS Code</a>
+        <span>Find related asks every other item how it relates to this one: same point, supports, contradicts, or same topic.</span>
+      </div>`;
     li.appendChild(det);
     btn.setAttribute('aria-expanded', 'true');
     btn.textContent = 'Hide';
     try {
-      const item = await (await fetch(`/api/item?id=${encodeURIComponent(r.id)}`)).json();
-      det.querySelector('.saw').textContent = item.text || '';
+      const res = await fetch(`/api/item?id=${encodeURIComponent(r.id)}`);
+      const item = await res.json();
+      det.querySelector('.saw').textContent = res.ok ? item.text || '' : 'This item changed on disk since the sift ran. Run it again to see the current text.';
     } catch { det.querySelector('.saw').textContent = 'Could not load the item text.'; }
   }
 
-  function status(text, stats) {
-    $('status').hidden = false;
-    $('status-text').innerHTML = text;
-    $('stats').textContent = stats || '';
+  function status(v, html, stats) {
+    v.statusHtml = html;
+    v.stats = stats || '';
+    if (v === V) paint();
   }
 
-  async function run(e) {
-    e && e.preventDefault();
-    const cfg = MODES[mode];
-    const q = $('q').value.trim();
-    if (cfg.input && !cfg.optional && !q) { $('q').focus(); status('Type a question first.'); return; }
-    if (!kinds.size) { status('Pick at least one kind of item.'); return; }
-    if (source) source.close();
-    rows = []; total = 0; shown = PAGE; activeGroup = null; grouped = Boolean(cfg.grouped);
-    $('empty').hidden = true;
-    $('toolbar').hidden = false;
-    $('groups').hidden = true;
-    $('go').disabled = true;
-    $('progress').style.width = '0%';
-    skeleton();
+  // One sift at a time, across every tab. `busy` is set before the first await, so nothing can
+  // slip in while a preflight is still pending; only the stream that set it clears it.
+  let busy = false, busyTab = null;
+  function setBusy(on, m = null) {
+    busy = on;
+    busyTab = on ? m : null;
+    for (const id of ['go', 'narrow-go']) {
+      $(id).disabled = on;
+      $(id).title = on ? 'A sift is running. Wait for it to finish.' : '';
+    }
+  }
+  // Say why a click did nothing.
+  let noteTimer = null;
+  function busyNote() {
+    const where = busyTab && busyTab !== mode ? ` in the ${MODES[busyTab]?.title || busyTab} tab` : '';
+    $('busy-note').textContent = `A sift is running${where}. Wait for it to finish, then try again.`;
+    $('busy-note').hidden = false;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => { $('busy-note').hidden = true; }, 3500);
+  }
 
-    const p = new URLSearchParams({ preset: mode, type });
-    if (mode === 'ask') p.set('q', q);
-    if (mode === 'counter' && q) p.set('thesis', q);
+  // Common filters for any sift: kinds and date range, applied in code before asking.
+  function filterParams(p) {
     const since = sinceParam();
     if (since) p.set('since', since);
     if (meta && kinds.size < Object.keys(meta.by).length) p.set('kind', [...kinds].join(','));
-    // Validate first (free): EventSource cannot read an error response, and retrying the
-    // stream itself would start a second, paid sift.
-    try {
-      const pre = await fetch(`/api/sift?${p}&check=1`);
-      const j = await pre.json();
-      if (!pre.ok) { finish(); $('results').innerHTML = ''; status(`<span class="notice">${esc(j.error)}</span>`); return; }
-    } catch {
-      finish(); $('results').innerHTML = '';
-      status('<span class="notice">Cannot reach the Sieve server. Start it with <code>node projects/sieve/sieve.cjs serve</code>.</span>');
-      return;
-    }
-    const t0 = performance.now();
-    status('<strong>Sifting</strong>');
-    source = new EventSource(`/api/sift?${p}`);
-    let got = 0;
-
-    source.addEventListener('start', (ev) => {
-      const d = JSON.parse(ev.data);
-      total = d.total;
-      lensLabels = d.lensLabels || {};
-      backendName = d.backend ? d.backend.label : '';
-      status(`<strong>${esc(d.title)}</strong> · reading ${total.toLocaleString()} items${backendName ? ` with ${esc(backendName)}` : ''}`);
-      if (!total) { finish(); $('results').innerHTML = ''; status('No items match those filters. Widen the date range or turn more kinds on.'); }
-    });
-    source.addEventListener('batch', (ev) => {
-      const batch = JSON.parse(ev.data);
-      got += batch.length;
-      rows.push(...batch);
-      rows.sort((a, b) => b.value - a.value);
-      $('progress').style.width = `${(got / Math.max(1, total)) * 100}%`;
-      const secs = (performance.now() - t0) / 1000;
-      // After a few batches, estimate the rest (local CPU models take minutes, not seconds).
-      const left = got >= 3 && got < total ? secs / got * (total - got) : 0;
-      $('stats').textContent = `${got.toLocaleString()} / ${total.toLocaleString()} · ${secs.toFixed(1)} s${left > 5 ? ` · about ${left >= 90 ? Math.round(left / 60) + ' min' : Math.round(left) + ' s'} left` : ''}`;
-      render();
-    });
-    source.addEventListener('done', (ev) => {
-      const d = JSON.parse(ev.data);
-      finish();
-      const failed = d.failures ? ` · ${d.failures} failed` : '';
-      status(`<strong>Done.</strong> ${d.items.toLocaleString()} items judged${backendName ? ` by ${esc(backendName)}` : ''}`, `${d.requests} requests${d.cached ? ` (+${d.cached} cached)` : ''} · ${(d.ms / 1000).toFixed(1)} s · ${money(d.cost)}${failed}`);
-      render();
-    });
-    source.addEventListener('failed', (ev) => { finish(); status(`<span class="notice">${esc(JSON.parse(ev.data).error)}</span>`); });
-    // Never let EventSource reconnect on its own: a reconnect is a new, paid sift.
-    source.onerror = () => {
-      if (!source) return;
-      finish();
-      const kept = rows.length ? ` Showing the ${rows.length.toLocaleString()} results that arrived.` : '';
-      if (!rows.length) $('results').innerHTML = '';
-      status(`<span class="notice">Lost the connection to the Sieve server.${kept}</span>`);
-      render();
-    };
+    return p;
   }
 
-  function finish() {
-    if (source) { source.close(); source = null; }
-    $('go').disabled = false;
-    $('progress').style.width = '100%';
+  // The request for the current tab and inputs, shared by the estimate and the real sift.
+  // Returns { p, what } or { hint } when there is nothing to ask yet.
+  function buildParams({ forEstimate = false } = {}) {
+    const cfg = MODES[mode];
+    if (!cfg) return {};
+    let q = $('q').value.trim();
+    if (!kinds.size) return { hint: 'Pick at least one kind of item.' };
+    let what = cfg.title;
+    if (cfg.input && !cfg.optional && !q) {
+      if (!forEstimate) return { hint: 'Type a question first.' };
+      q = meta?.examples?.[0] || 'an example question'; // estimate for a question like the example
+      what = 'A question like the example';
+    } else if (mode === 'ask') what = 'This question';
+    let p;
+    if (cfg.related) {
+      if (!V.anchor) return {};
+      p = new URLSearchParams({ preset: 'related', anchor: V.anchor.id });
+    } else {
+      p = new URLSearchParams({ preset: mode, type });
+      if (mode === 'ask') {
+        p.set('q', q);
+        const vs = $('vs').value.trim();
+        if (vsOpen && vs) { p.set('vs', vs); what = 'Both wordings'; }
+      }
+      if (cfg.optional && q) p.set('thesis', q);
+    }
+    return { p: filterParams(p), what, q };
+  }
+
+  function run(e) {
+    e && e.preventDefault();
+    const built = buildParams();
+    if (!built.p) {
+      // Say what is missing next to the box; the results of the last sift stay as they were.
+      if (built.hint) { if (MODES[mode].input) $('q').focus(); $('estimate').textContent = built.hint; $('estimate').classList.add('hint'); }
+      return;
+    }
+    V.q = built.q || '';
+    start(V, mode, built.p);
+  }
+
+  function openRelated(id) {
+    if (busy) { busyNote(); return; }
+    const r = V.rows.find((x) => x.id === id);
+    if (!r) return;
+    const v = viewFor('related');
+    v.anchor = { id: r.id, title: r.title };
+    v.help = `How every other item relates to "${r.title}": the same point, evidence that supports it, a contradiction, or only the same topic. Ranked by how closely they connect.`;
+    renderTabs();
+    setMode('related');
+    start(v, 'related', filterParams(new URLSearchParams({ preset: 'related', anchor: r.id })));
+  }
+
+  // Each narrowing step keeps the view it narrowed (to go back to) and the cut it made.
+  function narrow(e) {
+    e.preventDefault();
+    const q = $('narrow-q').value.trim();
+    if (!q) { $('narrow-q').focus(); return; }
+    const { steps, ...view } = V;
+    const step = { view, cut: { min: V.threshold, group: V.activeGroup, n: visible().length } };
+    const p = new URLSearchParams({ preset: 'ask', q, type, within: V.sid, min: String(V.threshold / 100) });
+    if (V.activeGroup) p.set('wgroup', V.activeGroup);
+    start(V, mode, p, { step }).then((ok) => { if (ok) $('narrow-q').value = ''; });
+  }
+
+  function backTo(i) {
+    if (busy) { busyNote(); return; }
+    Object.assign(V, V.steps[i].view, { steps: V.steps.slice(0, i) });
+    $('threshold').value = V.threshold;
+    $('threshold-out').textContent = `${V.threshold}%`;
+    paint();
+  }
+
+  // Start a sift in view `v` (the tab `m`). The free preflight runs first and the view keeps its
+  // current results until it passes, so a refused sift ("already running", "no longer in the
+  // corpus", no matching items) never wipes what was on screen. Resolves true once streaming.
+  async function start(v, m, p, { step = null } = {}) {
+    if (busy) { busyNote(); return false; }
+    setBusy(true, m);
+    const refuse = (html) => {
+      setBusy(false);
+      status(v, `<span class="notice">${html}</span>`, v.done ? v.stats : '');
+      return false;
+    };
+    // EventSource cannot read an error response, and retrying the stream itself would start a
+    // second, paid sift, so every problem is caught here, for free.
+    let pre;
+    try {
+      const res = await fetch(`/api/sift?${p}&check=1`);
+      pre = await res.json();
+      if (!res.ok) {
+        if (pre.setup) { await loadMeta(); window.scrollTo(0, 0); return refuse('Add an API key first: the steps are at the top of the page.'); }
+        return refuse(esc(pre.error));
+      }
+    } catch {
+      return refuse('Cannot reach the Sieve server. Start it with <code>node sieve.cjs serve</code>.');
+    }
+    if (!pre.items) return refuse('No items match. Widen the date range, turn more kinds on, or lower the bar before narrowing.');
+
+    if (step) v.steps = [...v.steps, step];
+    else v.steps = [];
+    // What this sift asked about, so later filter changes can tell narrowing the view from
+    // needing a new sift. A narrowing step keeps the filters of the sift it narrows.
+    if (!step) v.asked = { kinds: [...kinds], since: sinceParam() };
+    Object.assign(v, { rows: [], total: 0, shown: PAGE, activeGroup: null, grouped: false, sid: null, title: pre.title, progress: 0, started: true, done: false, error: false });
+    status(v, `<strong>${esc(pre.title)}</strong> · starting`);
+    // On a phone the controls fill the first screen; bring the arriving results into view.
+    if (v === V && window.innerWidth < 640) $('status').scrollIntoView({ block: 'start', behavior: 'smooth' });
+
+    const t0 = performance.now();
+    const es = new EventSource(`/api/sift?${p}`);
+    source = es;
+    let got = 0;
+    const finish = () => {
+      es.close();
+      if (source === es) source = null;
+      v.progress = 100;
+      setBusy(false);
+    };
+    const fail = (html) => { finish(); v.error = !v.rows.length; status(v, `<span class="notice">${html}</span>`); };
+
+    es.addEventListener('start', (ev) => {
+      const d = JSON.parse(ev.data);
+      Object.assign(v, { total: d.total, title: d.title, meaning: d.meaning || '', grouped: d.grouped, lensLabels: d.lensLabels || {}, backendName: d.backend ? d.backend.label : '', sid: d.sid });
+      status(v, `<strong>${esc(d.title)}</strong> · reading ${plural(d.total, 'item')}${v.backendName ? ` with ${esc(v.backendName)}` : ''}`);
+    });
+    es.addEventListener('batch', (ev) => {
+      const batch = JSON.parse(ev.data);
+      got += batch.length;
+      v.rows.push(...batch);
+      v.rows.sort((a, b) => b.value - a.value);
+      v.progress = (got / Math.max(1, v.total)) * 100;
+      const secs = (performance.now() - t0) / 1000;
+      // After a few batches, estimate the rest (local CPU models take minutes, not seconds).
+      const left = got >= 3 && got < v.total ? secs / got * (v.total - got) : 0;
+      v.stats = `${got.toLocaleString()} / ${v.total.toLocaleString()} · ${secs.toFixed(1)} s${left > 5 ? ` · about ${left >= 90 ? Math.round(left / 60) + ' min' : Math.round(left) + ' s'} left` : ''}`;
+      if (v === V) { $('stats').textContent = v.stats; $('progress').style.width = `${v.progress}%`; render(); }
+    });
+    es.addEventListener('done', (ev) => {
+      const d = JSON.parse(ev.data);
+      finish();
+      v.done = true;
+      v.sid = d.sid;
+      v.reason = d.reason || '';
+      const stats = `${plural(d.requests, 'request')}${d.cached ? ` (+${d.cached} cached)` : ''} · ${(d.ms / 1000).toFixed(1)} s · ${money(d.cost)}`;
+      // Items the model could not judge are hidden from the ranking, so say so, with the reason.
+      const missed = d.errors ? `<span class="notice">${d.errors === d.items ? 'None' : d.errors.toLocaleString()} of ${itemsWord(d.items)} could not be judged: ${esc(d.reason || 'the backend did not answer')}</span>` : '';
+      status(v, `<strong>Done.</strong> ${esc(v.title)} · ${itemsWord(d.items - (d.errors || 0))} judged${v.backendName ? ` by ${esc(v.backendName)}` : ''}${missed}`, stats);
+      scheduleEstimate(); // this backend is timed now
+    });
+    es.addEventListener('failed', (ev) => fail(esc(JSON.parse(ev.data).error)));
+    // Never let EventSource reconnect on its own: a reconnect is a new, paid sift.
+    es.onerror = () => {
+      if (source !== es) return;
+      const kept = v.rows.length ? ` Showing the ${v.rows.length.toLocaleString()} results that arrived.` : '';
+      fail(`Lost the connection to the Sieve server.${kept}`);
+    };
+    return true;
+  }
+
+  // Export what is on screen: the rows that clear the bar (and the group filter), in rank order.
+  function download(name, type, text) {
+    const url = URL.createObjectURL(new Blob([text], { type }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: name });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  const slug = (s) => (s || 'sieve').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'sieve';
+  // Text cells come from notes and model output: quote what CSV needs quoted, and defuse anything a
+  // spreadsheet would run as a formula. Numbers go out as they are.
+  const csvCell = (x) => { const s = String(x ?? ''); return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const csvText = (x) => csvCell(/^[=+\-@\t\r]/.test(String(x ?? '')) ? `'${x}` : x);
+  const mdHref = (p) => p.split('/').map(encodeURIComponent).join('/');
+  async function exportRows(kind) {
+    const list = visible();
+    const path = [...V.steps.map((s) => `${s.title} (${s.cut.min}%+)`), V.title].join(' > ');
+    clearTimeout(exportRows.timer);
+    $('copied').textContent = ''; // a new export replaces the last note
+    const note = (text) => { $('copied').textContent = text; exportRows.timer = setTimeout(() => { $('copied').textContent = ''; }, 1800); };
+    if (kind === 'md') {
+      const lines = [`**${path}**: ${list.length} of ${V.rows.length} items at ${V.threshold}% or more${V.activeGroup ? ` in ${V.activeGroup}` : ''}.`, '',
+        ...list.map((r) => `- ${pct(r.value)} [${r.title.replace(/[[\]]/g, '')}](${mdHref(r.path)}#L${r.line})${r.label ? ` · ${r.label}` : ''}`)];
+      try { await navigator.clipboard.writeText(lines.join('\n') + '\n'); note('Copied.'); }
+      catch { download(`${slug(V.title)}.md`, 'text/markdown', lines.join('\n') + '\n'); note('Downloaded.'); }
+    } else if (kind === 'csv') {
+      const head = ['value', 'title', 'kind', 'date', 'label', 'group', 'path', 'line'];
+      const body = list.map((r) => [r.value.toFixed(4), ...[r.title, r.kind, r.date, r.label, r.group, r.path].map(csvText), r.line].join(','));
+      download(`${slug(V.title)}.csv`, 'text/csv', [head.join(','), ...body].join('\n') + '\n');
+    } else {
+      const out = { question: path, backend: V.backendName, threshold: V.threshold / 100, group: V.activeGroup, rows: list.map(({ id, ...r }) => r) };
+      download(`${slug(V.title)}.json`, 'application/json', JSON.stringify(out, null, 2) + '\n');
+    }
   }
 
   // wiring
-  document.querySelector('.modes').addEventListener('click', (e) => { const b = e.target.closest('.mode'); if (b) setMode(b.dataset.mode); });
+  $('modes').addEventListener('click', (e) => { const b = e.target.closest('.mode'); if (b) setMode(b.dataset.mode); });
   document.querySelector('.answer-as').addEventListener('click', (e) => {
     const b = e.target.closest('button'); if (!b) return;
     type = b.dataset.type;
     for (const x of document.querySelectorAll('.answer-as button')) x.setAttribute('aria-pressed', String(x === b));
+    if (mode === 'ask' && !V.help) $('help').textContent = askHelp();
+    scheduleEstimate();
   });
+  function setCompare(open) {
+    vsOpen = open;
+    $('vs-row').hidden = !vsOpen;
+    $('a-tag').hidden = !vsOpen; // the rows say A and B, so the boxes do too
+    $('q').setAttribute('aria-label', vsOpen ? 'Wording A' : 'Your question');
+    $('vs').setAttribute('aria-label', 'Wording B');
+    $('vs-toggle').setAttribute('aria-expanded', String(vsOpen));
+    $('vs-toggle').textContent = vsOpen ? 'Ask one wording only' : 'Compare with a second wording';
+    if (vsOpen) $('vs').focus(); else $('vs').value = '';
+    scheduleEstimate();
+  }
+  $('vs-toggle').addEventListener('click', () => setCompare(!vsOpen));
+  $('q').addEventListener('input', scheduleEstimate);
+  $('vs').addEventListener('input', scheduleEstimate);
+  // Filters change the estimate for the next sift and the rows already on screen.
+  $('since').addEventListener('change', () => { scheduleEstimate(); V.shown = PAGE; render(); });
   $('kinds').addEventListener('click', (e) => {
     const b = e.target.closest('.chip'); if (!b) return;
     const on = b.getAttribute('aria-pressed') !== 'true';
     b.setAttribute('aria-pressed', String(on));
     on ? kinds.add(b.dataset.kind) : kinds.delete(b.dataset.kind);
+    scheduleEstimate();
+    V.shown = PAGE;
+    render();
   });
-  $('groups').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (!b) return; activeGroup = b.dataset.group || null; shown = PAGE; render(); });
-  $('threshold').addEventListener('input', () => { $('threshold-out').textContent = `${$('threshold').value}%`; shown = PAGE; render(); });
-  $('results').addEventListener('click', (e) => { const b = e.target.closest('[data-expand]'); if (b) expand(b); });
-  $('show-more').addEventListener('click', () => { shown += PAGE; render(); });
+  $('stale-go').addEventListener('click', () => run());
+  // The "nothing scored high enough" panel's next steps.
+  $('nothing').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]'); if (!b) return;
+    if (b.dataset.act === 'settings') showView('settings');
+    if (b.dataset.act === 'bar') { V.threshold = Number(b.dataset.bar); $('threshold').value = V.threshold; $('threshold-out').textContent = `${V.threshold}%`; V.shown = PAGE; render(); }
+    if (b.dataset.act === 'reword') { window.scrollTo(0, 0); setCompare(true); }
+  });
+  $('empty-help').addEventListener('click', () => showView('help'));
+  $('groups').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (!b) return; V.activeGroup = b.dataset.group || null; V.shown = PAGE; render(); });
+  $('threshold').addEventListener('input', () => { V.threshold = Number($('threshold').value); $('threshold-out').textContent = `${V.threshold}%`; V.shown = PAGE; render(); });
+  $('results').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-expand]'); if (b) return expand(b);
+    const r = e.target.closest('[data-related]'); if (r) openRelated(r.dataset.related);
+  });
+  $('show-more').addEventListener('click', () => { V.shown += PAGE; render(); });
   $('form').addEventListener('submit', run);
+  $('narrow').addEventListener('submit', narrow);
+  $('crumbs').addEventListener('click', (e) => { const b = e.target.closest('[data-step]'); if (b) backTo(Number(b.dataset.step)); });
+  $('export').addEventListener('click', (e) => { const b = e.target.closest('[data-export]'); if (b) exportRows(b.dataset.export); });
   $('examples').addEventListener('click', (e) => { const b = e.target.closest('.chip'); if (!b) return; setMode('ask'); $('q').value = b.textContent; run(); });
 
   // ---------------------------------------------------------------- settings
@@ -586,18 +1106,102 @@
   const api = (url, opts = {}) => fetch(url, { ...opts, headers: { 'X-Sieve': '1', 'Content-Type': 'application/json', ...(opts.headers || {}) } })
     .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`); return j; });
 
-  function showView(v) {
+  // Help and Settings are pages in the browser's history: Back closes them instead of leaving
+  // Sieve (and the results with it), and #help or #settings in the address bar opens them.
+  const viewFromHash = () => (location.hash === '#help' ? 'help' : location.hash === '#settings' ? 'settings' : 'sift');
+  let scrollBack = 0;
+  function renderView(v) {
+    const was = $('view-sift').hidden ? null : 'sift';
+    if (was === 'sift' && v !== 'sift') scrollBack = window.scrollY;
     $('gear').setAttribute('aria-expanded', String(v === 'settings'));
+    $('help-btn').setAttribute('aria-expanded', String(v === 'help'));
     $('view-sift').hidden = v !== 'sift';
     $('view-settings').hidden = v !== 'settings';
+    $('view-help').hidden = v !== 'help';
     if (v === 'settings') loadSettings();
-    try { history.replaceState(null, '', v === 'settings' ? '#settings' : location.pathname); } catch {}
+    if (v === 'help') renderHelp();
+    window.scrollTo(0, v === 'sift' ? scrollBack : 0);
   }
+  function showView(v) {
+    if (v === viewFromHash()) return renderView(v);
+    try {
+      if (v === 'sift') {
+        // Closing a panel: step back if we opened it, so Back and the close button agree.
+        if (history.state?.sieve) { history.back(); return; }
+        history.pushState(null, '', location.pathname + location.search);
+      } else if (viewFromHash() === 'sift') history.pushState({ sieve: true }, '', `#${v}`);
+      else history.replaceState({ sieve: true }, '', `#${v}`);
+    } catch {}
+    renderView(v);
+  }
+  window.addEventListener('popstate', () => renderView(viewFromHash()));
+  window.addEventListener('hashchange', () => renderView(viewFromHash()));
   $('gear').addEventListener('click', () => showView($('view-settings').hidden ? 'settings' : 'sift'));
+  $('help-btn').addEventListener('click', () => showView($('view-help').hidden ? 'help' : 'sift'));
   $('close-settings').addEventListener('click', () => { showView('sift'); $('gear').focus(); });
+  $('close-help').addEventListener('click', () => { showView('sift'); $('help-btn').focus(); });
+  // Keyboard: / to type a question, ? for help, Esc to close a panel.
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !$('view-settings').hidden) { showView('sift'); $('gear').focus(); }
+    if (e.key === 'Escape' && !$('view-settings').hidden) { showView('sift'); $('gear').focus(); return; }
+    if (e.key === 'Escape' && !$('view-help').hidden) { showView('sift'); $('help-btn').focus(); return; }
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
+    if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === '?') { e.preventDefault(); showView($('view-help').hidden ? 'help' : 'sift'); }
+    if (e.key === '/' && !$('view-sift').hidden && !$('q').hidden) { e.preventDefault(); $('q').focus(); $('q').select(); }
   });
+
+  // The help page, written from this corpus's own config: its tabs, its examples, its backend.
+  function renderHelp() {
+    if (!meta) return;
+    const b = meta.backend;
+    const cloud = b.kind === 'openrouter' || b.kind === 'typesafe';
+    const ex = meta.examples[0] || 'what you are looking for';
+    const presets = meta.presets.filter((p) => p.id !== 'ask');
+    const kindsList = Object.entries(meta.by).map(([k, n]) => `${n.toLocaleString()} ${KIND_LABELS[k] || k}`).join(', ');
+    $('help-body').innerHTML = `
+      <p>Sieve puts the same question to every item in <b>${esc(meta.name)}</b> (${esc(kindsList)}) and ranks them by the answer.
+      The model never writes text back: it only answers yes or no, picks from a list, or places each item on a scale, and every answer comes with a probability.
+      That makes it fast and cheap enough to ask about everything, and it tells you when it is unsure.</p>
+
+      <h3>Your first sift</h3>
+      <ol>
+        <li>On <b>Ask anything</b>, describe what you are looking for, like <q>${esc(ex)}</q>, and press <b>Sift</b>. The line under the box says how many items it will ask and what it will cost before you press anything.</li>
+        <li>Results arrive while you watch, best match first. The percentage is the chance each item matches; the line above the list says exactly what it measures.</li>
+        <li>Move <b>Show items scoring at least</b> to see more or fewer. Around 50% is a coin flip; above 80% the model is confident.</li>
+        <li>Click a title (or <b>Details</b>) to see the full answer and exactly the text the model read, so you can judge the judgment.</li>
+      </ol>
+      <p><b>Yes / no or 4-step scale?</b> Yes / no asks whether each item matches and ranks by the chance of yes: best for finding things. The 4-step scale places each item from unrelated, through in passing and clearly relevant, to squarely about it: best for seeing degrees of relevance.</p>
+
+      ${presets.length ? `<h3>The other tabs</h3>
+      <p>Each asks a question already written for this corpus. Press the tab, read what it asks, then <b>Sift</b>.</p>
+      <dl>${presets.map((p) => `<dt>${esc(p.title)}</dt><dd>${esc(p.hint || (p.asks || [])[0] || '')}${p.choices ? ` Picks one of: ${esc(p.choices.join(', '))}.` : ''}</dd>`).join('')}</dl>
+      <p>Tabs that pick from a list show chips above the results; click one to see only that pick.</p>` : ''}
+
+      <h3>Going further</h3>
+      <dl>
+        <dt>Find related</dt><dd>In any result's details. Every other item is asked how it relates to that one: the same point, evidence that supports it, a contradiction, or only the same topic.</dd>
+        <dt>Compare wordings</dt><dd>On Ask anything, <b>Compare with a second wording</b> asks both in one pass and groups the results into both, only A, and only B (items neither wording matches fall below the bar). The quickest way to find a better question.</dd>
+        <dt>Narrow</dt><dd>After a sift, <b>Then ask of these</b> puts a follow-up question to only the items on screen. The breadcrumbs above the list go back a step.</dd>
+        <dt>Export</dt><dd><b>Copy Markdown</b>, <b>Download CSV</b>, or <b>Download JSON</b> save exactly the rows on screen.</dd>
+      </dl>
+
+      <h3>Writing questions that work</h3>
+      <ul>
+        <li><b>Use the words the items use.</b> The model reads literally. If nothing scores well, reword toward the text, and compare the two wordings side by side.</li>
+        <li><b>Name things instead of pointing at them.</b> It does not know who "I" or "my project" is. Say "a hands-on build that could be demoed at a meetup", not "things I could demo".</li>
+        <li><b>Ask one thing at a time.</b> Ask the broad question first, then narrow with the second.</li>
+        <li><b>Ask for the concrete thing.</b> "Reports that maintainers go unpaid" works far better than "evidence against the claim that maintainers are well paid".</li>
+      </ul>
+
+      <h3>Cost, speed, and privacy</h3>
+      <p>${cloud
+        ? `Questions go to <b>${esc(b.label)}</b> (<code>${esc(b.model)}</code>), with the text of each item. A sift of the whole corpus usually takes a few seconds and costs a fraction of a cent. ${meta.cache ? 'Answers are cached on this machine, so asking the same thing again is free.' : 'This server was started with --no-cache, so every sift is asked and billed afresh.'}`
+        : `Questions go to <b>${esc(b.label)}</b> on this machine, so nothing leaves it and nothing is billed. Local models answer one item at a time, so expect seconds per item; the line under the question box says how long once the first sift has been timed.`}
+      Change where questions go in <b>Settings</b> (the gear).</p>
+
+      <h3>Keyboard</h3>
+      <dl><dt><kbd>/</kbd></dt><dd>Type a question.</dd><dt><kbd>Enter</kbd></dt><dd>Sift.</dd><dt><kbd>?</kbd></dt><dd>Open or close this page.</dd><dt><kbd>Esc</kbd></dt><dd>Close this page or Settings.</dd></dl>`;
+  }
 
   async function loadSettings() {
     try {
@@ -623,7 +1227,7 @@
       const tags = [p.id === settings.active ? 'in use' : '', p.id === editing ? 'editing' : ''].filter(Boolean).join(' · ');
       return `
       <button type="button" class="backend" aria-pressed="${p.id === editing}" data-active="${p.id === settings.active}" data-id="${esc(p.id)}">
-        <span class="dot" aria-hidden="true"></span>
+        
         <span class="name">${esc(p.label)}</span>
         <span class="tag${p.id === editing ? ' editing' : ''}">${tags}</span>
         <span class="sub">${esc(p.model)} · ${esc(hostOf(p.baseUrl))} · ${p.pack} per request · ${esc(keyLabel(p))}</span>
@@ -679,14 +1283,20 @@
     editing = `local-${n}`; renderBackends(); fillForm();
     result('New profile. Fill it in, test it, then save.', '');
   });
+  // A backend that just failed its test can still be saved (a local server may be starting), but
+  // the button says so, so nobody switches to a broken backend by accident.
+  function failedTest(msg) {
+    result(`Failed: ${msg}`, 'bad');
+    if (editing !== settings.active) $('save').textContent = 'Save and use anyway';
+  }
   $('test').addEventListener('click', async () => {
     $('test').disabled = true;
     result('Asking one question...', '');
     try {
       const r = await api('/api/settings/test', { method: 'POST', body: JSON.stringify({ backend: formProfile() }) });
-      if (!r.ok) result(`Failed: ${r.error}`, 'bad');
+      if (!r.ok) failedTest(r.error);
       else result(`Answered in ${r.ms} ms · ${r.model}${r.served ? ` · serving ${r.served}` : ''} · "Is the writer frustrated?" yes ${Math.round(r.noul * 100)}%${r.cost != null ? ` · ${money(r.cost)}` : ''}`, 'ok');
-    } catch (err) { result(`Failed: ${err.message}`, 'bad'); }
+    } catch (err) { failedTest(err.message); }
     $('test').disabled = false;
   });
   $('edit').addEventListener('submit', async (e) => {
@@ -712,7 +1322,7 @@
 
   setMode('ask');
   loadMeta();
-  if (location.hash === '#settings') showView('settings');
+  if (viewFromHash() !== 'sift') renderView(viewFromHash());
 })();
 </script>
 </body>
