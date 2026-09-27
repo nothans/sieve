@@ -118,7 +118,8 @@ async function main() {
   const a = parseArgs(process.argv.slice(2));
   const cmd = a._[0];
   if (a.help || !cmd) {
-    process.stdout.write(fs.readFileSync(__filename, 'utf8').split('*/')[0].replace(/^#!.*\n\/\*\n?/, '').replace(/^ \* ?/gm, ''));
+    // a checkout with Windows line endings reads the same as any other
+    process.stdout.write(fs.readFileSync(__filename, 'utf8').replace(/\r\n/g, '\n').split('*/')[0].replace(/^#!.*\n\/\*\n?/, '').replace(/^ \* ?/gm, ''));
     return;
   }
   const config = loadConfig(a.config);
