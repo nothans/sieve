@@ -14,6 +14,7 @@
  *   node sieve.cjs lens <preset>                          run a preset from the config
  *   node sieve.cjs related "<title words or id>"          how every other item relates to one item
  *   node sieve.cjs lint [--changed origin/main]           check plain-English rules; exit 1 on a fail
+ *   node sieve.cjs crosscheck [--dry-run]                 check every note against every other: contradictions, repeats
  *   node sieve.cjs route                                  write the routing report
  *   node sieve.cjs eval [--n 240] [--packs 1,8,16,26]     measure a choice lens against your labels
  *   node sieve.cjs serve [--port 4177]                    the web UI
@@ -28,7 +29,12 @@
  *   --vs <text>      ask: a second wording, asked in the same request; shows where they differ
  *   --then <text>    ask: a follow-up question for the items that clear --min (default 0.5)
  *   --changed <ref>  lint: only items in files that differ from this git ref
- *   --format <f>     lint: text (default), json, or github (Actions annotations)
+ *                    crosscheck: only pairs that touch those files
+ *   --format <f>     lint, crosscheck: text (default), json, or github (Actions annotations)
+ *   --within <g>     crosscheck: compare items inside each label or kind, or all (the default)
+ *   --budget <usd>   crosscheck: the most a run may cost (default 1); over it, nothing is spent
+ *   --dry-run        crosscheck: say what a run would ask and cost, and stop
+ *   --strict         crosscheck: exit 1 when a contradiction is found
  *   --backend <id>   which backend from Settings (default: the active one; see local/settings.json)
  *   --pack <n>       items per request (default: the backend's setting)
  *   --concurrency <n> requests in flight (default: the backend's setting)
@@ -52,9 +58,10 @@ const { filterItems } = require('./lib/filter.cjs');
 const { MIN_CUT } = require('./lib/evaluate.cjs');
 
 const CACHE = path.join(SIEVE_DIR, '.cache', 'answers.jsonl');
+const PAIRS = path.join(SIEVE_DIR, '.cache', 'pairs.jsonl'); // crosscheck's memory, one judgment a line
 
 function parseArgs(argv) {
-  const flags = new Set(['json', 'no-cache', 'help']);
+  const flags = new Set(['json', 'no-cache', 'help', 'dry-run', 'strict']);
   const a = { _: [] };
   for (let i = 0; i < argv.length; i++) {
     const t = argv[i];
@@ -194,6 +201,45 @@ async function main() {
     return;
   }
 
+  if (cmd === 'crosscheck') {
+    const cc = require('./lib/crosscheck.cjs');
+    const money = (x) => (x < 0.01 && x > 0 ? 'under $0.01' : `about $${x.toFixed(2)}`);
+    const res = await cc.crosscheck(jev, filterItems(corpus, a), config, {
+      within: a.within, budget: a.budget, changed: a.changed, dryRun: a['dry-run'], pack, concurrency,
+      memoryFile: a['no-cache'] ? null : PAIRS,
+      onPlan: (p) => process.stderr.write(`${p.items} items, ${p.pairs.toLocaleString('en-US')} pairs${p.within === 'all' ? '' : ` within each ${p.within}`}, each judged from both sides: ${p.remembered.toLocaleString('en-US')} judgments remembered, ${p.estimate.judgments.toLocaleString('en-US')} to ask in ${p.estimate.requests.toLocaleString('en-US')} requests, ${p.estimate.cost === 0 ? 'no charge' : money(p.estimate.cost)}${p.estimate.priced ? '' : " at Jev's OpenRouter price"}\n`),
+      onProgress: (done, total) => { if (total >= 200 && (done % 200 === 0 || done === total)) process.stderr.write(`  ${done.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} requests\n`); },
+    });
+    if (res.dryRun) {
+      if (res.plan.overBudget) process.stderr.write(`That is over the $${res.plan.budget} budget, so a run would stop before spending. Narrow it with --kind, --since, or --within, or allow it with --budget.\n`);
+      return;
+    }
+    const format = a.json ? 'json' : a.format || 'text';
+    const bare = (it) => ({ ...it, text: undefined });
+    const rows = (list) => list.map((f) => ({ relation: f.relation, p: f.p, sides: f.sides, mean: f.mean, a: bare(f.a), b: bare(f.b) }));
+    if (format === 'json') console.log(JSON.stringify({ settings: res.settings, plan: res.plan, stats: res.stats, contradictions: rows(res.contradictions), review: rows(res.review), same: rows(res.same), contested: res.contested.map((c) => ({ item: bare(c.item), pairs: c.pairs })), unjudged: res.unjudged }, null, 2));
+    else if (format === 'github') for (const line of cc.githubAnnotations(res, config.root, { strict: a.strict })) console.log(line);
+    else {
+      const show = (word, list) => {
+        for (const f of list.slice(0, top)) {
+          console.log(`${word.padEnd(11)} ${String(Math.round(f.p * 100)).padStart(3)}%  ${f.a.date || '          '}  ${f.a.path}:${f.a.line}  ${f.a.title.slice(0, 80)}`);
+          console.log(`${' '.repeat(11)} ${`${Math.round(f.sides[0] * 100)}/${Math.round(f.sides[1] * 100)}`.padStart(5)} ${f.b.date || '          '}  ${f.b.path}:${f.b.line}  ${f.b.title.slice(0, 80)}`);
+        }
+        if (list.length > top) console.log(`${' '.repeat(11)} ... and ${list.length - top} more in the report`);
+      };
+      show('contradicts', res.contradictions);
+      show('review', res.review);
+      show('same', res.same);
+      const file = cc.writeReport(res, config);
+      const count = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+      console.log(`\n${count(res.contradictions.length, 'contradiction', 'contradictions')}, ${res.review.length} to review, ${count(res.same.length, 'pair', 'pairs')} making the same point${res.unjudged ? `, ${count(res.unjudged, 'pair', 'pairs')} not judged (a request failed; run again)` : ''}`);
+      console.log(`wrote ${path.relative(process.cwd(), file)}`);
+    }
+    report(jev, t0, res.plan.items);
+    if (res.unjudged || (a.strict && res.contradictions.length)) process.exitCode = 1;
+    return;
+  }
+
   if (cmd === 'eval') {
     const { evaluate } = require('./lib/evaluate.cjs');
     const e = config.eval || {};
@@ -224,7 +270,7 @@ async function main() {
     return;
   }
 
-  throw new Error(`unknown command "${cmd}" (index, ask, lens, related, lint, eval, route, serve)`);
+  throw new Error(`unknown command "${cmd}" (index, ask, lens, related, lint, crosscheck, eval, route, serve)`);
 }
 
 // An item by id, or by words in its title (case-insensitive). Ambiguous words list the candidates.

@@ -1,0 +1,47 @@
+{
+  "name": "Sample research notes, with field notes",
+  "tagline": "The sample notebook plus sixteen later field notes, ten of which disagree with something already in it.",
+  "root": "notes",
+  "gitDates": false,
+  "sources": [
+    {
+      "kind": "brief",
+      "display": "briefs",
+      "glob": "briefs/*.md",
+      "text": "gist",
+      "gist": ["tl;?dr", "implications"],
+      "dateFrom": ["field", "filename"]
+    },
+    {
+      "kind": "news",
+      "display": "news",
+      "glob": "news/*.md",
+      "split": { "heading": 3, "requireBody": true },
+      "maxChars": 1600,
+      "dateFrom": ["title", "filename"]
+    },
+    {
+      "kind": "insight",
+      "display": "insights",
+      "glob": "insights/*.md",
+      "split": { "heading": 2, "requireDate": true, "stripDate": true },
+      "dateFrom": ["title"],
+      "label": "filename"
+    },
+    {
+      "kind": "field-note",
+      "display": "field notes",
+      "glob": "field-notes/*.md",
+      "split": { "heading": 2, "requireDate": true, "stripDate": true },
+      "dateFrom": ["title"]
+    }
+  ],
+  "crosscheck": {
+    "within": "all",
+    "flag": 0.5,
+    "review": 0.35,
+    "same": 0.7,
+    "budget": 0.25,
+    "reportsDir": "reports"
+  }
+}
