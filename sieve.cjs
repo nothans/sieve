@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /*
- * Sieve: sift a whole folder of notes by any judgment, in seconds, for fractions of a cent.
+ * Sieve: find where a folder of notes contradicts itself, and ask it anything.
  *
  * Every note (or section, or dated bullet, per the config) becomes an item. Jev, TypeSafe's
- * System One model, answers the same typed question about every item (through OpenRouter, or a
- * compatible model on your own machine), and Sieve ranks the items by the answer.
+ * System One model, answers typed questions about the items (through OpenRouter, or a compatible
+ * model on your own machine): one question put to every item and ranked by the answer, or every
+ * item compared with every other.
  *
  * Usage:
  *   node sieve.cjs index                                  count items by kind

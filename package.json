@@ -1,7 +1,7 @@
 {
   "name": "sieve",
   "version": "0.1.0",
-  "description": "Sift a whole folder of notes by any judgment, in seconds, with Jev (TypeSafe's typed-decision model) via OpenRouter.",
+  "description": "Find where a folder of notes contradicts itself, and ask it anything, with Jev (TypeSafe's typed-decision model) via OpenRouter.",
   "license": "MIT",
   "author": "Hans Scharler (https://nothans.com)",
   "repository": "github:nothans/sieve",

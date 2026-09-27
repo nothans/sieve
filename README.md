@@ -1,17 +1,50 @@
 # Sieve
 
-**Sift a whole folder of notes by any judgment, in seconds, for pennies.**
+**Find where a folder of notes contradicts itself, and ask it anything.**
 
-Point Sieve at a folder of Markdown (research notes, briefs, a blog, a knowledge base, 313 of Aesop's fables) and ask it anything in plain words: "security risks of AI agents", "a trick that backfires on the trickster", "a hands-on build I could demo at a meetup".
-Every item gets the same typed question, [Jev](https://openrouter.ai/docs/guides/community/jev) answers each one with a calibrated probability, and Sieve ranks the whole corpus by the answer while you watch.
+Point Sieve at a folder of Markdown: research notes, briefs, a blog, a knowledge base.
+`crosscheck` compares every note with every other note and lists the pairs that contradict each other and the pairs that make the same point twice.
+`ask` puts one plain-English question to every note and ranks the folder by the answer.
+[Jev](https://openrouter.ai/docs/guides/community/jev) answers every question with a typed answer and a probability, and never writes text.
+There is no index to build and nothing to embed.
+
+```text
+$ node sieve.cjs crosscheck --config examples/research-notes/crosscheck.config.json
+60 items, 1,770 pairs, each judged from both sides: 0 judgments remembered, 3,540 to ask in 240 requests, about $0.05
+contradicts 100%  2026-09-23  field-notes/2026-09.md:15  Four-bit models kept their calibration
+            99/100 2026-08-14  insights/edge-ai.md:21  Quantization quietly breaks confidence scores
+...
+same        100%  2026-09-11  insights/open-source.md:7  A maintenance-only fund was oversubscribed ten to one
+            99/100 2026-09-01  news/2026-09.md:17  Foundation launches maintenance-only fund (September 11)
+...
+30 contradictions, 3 to review, 17 pairs making the same point
+
+60 items, 240 requests (0 cached, 0 retries, 0 failed), $0.0486, 4.6 s, p50 212 ms
+```
+
+Features:
+
+- **Crosscheck.** Every pair of notes judged from both sides, reported as contradictions, repeats, and notes at odds with several others. A contradiction between an old note and a new one often means the old note is stale.
+- **Ask.** One plain-English question put to every note, ranked by probability. A 1,140-item notebook comes back in 2-3 seconds for about 2.5 cents.
+- **Related, compare, narrow.** How every note relates to one note, two wordings of a question side by side, and a follow-up asked of only the matches.
+- **Lint.** Plain-English rules with an exit code, for CI.
+- **Route and eval.** A report of orphans and misfiled notes, and accuracy measured against labels you already have.
+- **Probabilities.** Every answer comes with one, so Sieve ranks, thresholds, and hands you the uncertain middle.
+- **Cost estimate and budget.** Every run is estimated before it spends anything, and crosscheck stops at a budget.
+- **Cloud or local.** Jev through OpenRouter, or a compatible model on your own machine.
+- **Just Node.** Node 20.6+, no dependencies, no build step, no database. Your notes stay files.
 
 ![Sieve asking all 313 of Aesop's fables "someone boasts and is proven wrong": 20 requests, 0.5 seconds, $0.0035, with the estimate above and a line saying what the percentage means](docs/images/sieve-ask.png)
 
-- **Fast enough to feel like search.** Items are packed 16 to a request and requests run 16 at a time. A 1,140-item research notebook comes back in 2-3 seconds, streaming.
-- **Cheap enough to ask everything.** Jev bills input tokens only, at $0.042 per million. A full sweep of that notebook costs about 2.5 cents.
-- **Calibrated, so it can say "not sure".** Every answer is a probability or a confidence, so Sieve ranks, thresholds, and hands you the uncertain middle instead of pretending.
-- **Typed.** Answers are the options you defined, never a paragraph to parse.
-- **Just Node.** Node 20.6+, no dependencies, no build step, no database. Your notes stay files.
+Resources:
+
+- Quick start: [clone, add a key, run](#quick-start)
+- Crosscheck: [what it found and what it missed](#crosscheck-every-note-against-every-other)
+- Using your own notes: [the config](#point-it-at-your-own-notes)
+- Wording questions: [How to ask Jev](#how-to-ask-jev)
+- Accuracy against hand-filed labels: [How well does it work?](#how-well-does-it-work-measured)
+- Blog post on Jev: [My Name is Jev: Meet the New Type of AI Model](https://nothans.com/my-name-is-jev-meet-the-new-type-of-ai-model)
+- Jev on OpenRouter: [the guide](https://openrouter.ai/docs/guides/community/jev)
 
 ## What is Jev?
 
@@ -39,6 +72,7 @@ node sieve.cjs serve --config examples/aesop/sieve.config.json
 # open http://127.0.0.1:4177
 
 # or the command line
+node sieve.cjs crosscheck --config examples/research-notes/crosscheck.config.json    # about 5 cents
 node sieve.cjs ask "a clever animal outwits a stronger one" --config examples/aesop/sieve.config.json
 node sieve.cjs lens moral --config examples/aesop/sieve.config.json
 ```
@@ -63,13 +97,13 @@ Two demos ship in `examples/`:
 
 ```bash
 node sieve.cjs index                         # count items by kind
+node sieve.cjs crosscheck                    # every note against every other: contradictions, repeats
 node sieve.cjs ask "<plain words>"           # rank everything; --type score for a 4-step scale
 node sieve.cjs ask "<A>" --vs "<B>"          # compare two wordings of the same question
 node sieve.cjs ask "<A>" --then "<B>"        # ask B of only the items A matched (--min 0.5)
 node sieve.cjs lens <preset>                 # run a preset from the config
 node sieve.cjs related "<title words>"       # how every other item relates to one item
 node sieve.cjs lint                          # check plain-English rules; exits 1 on a fail
-node sieve.cjs crosscheck                    # every note against every other: contradictions, repeats
 node sieve.cjs route                         # write a routing report (orphans, hooks, second looks)
 node sieve.cjs eval                          # accuracy of a choice lens against labels you already have
 node sieve.cjs eval --backend local          # the same eval against a local model (see Backends)
@@ -81,10 +115,121 @@ Common options: `--config <file>`, `--kind a,b`, `--since 2026-06`, `--top 20`, 
 Answers are cached in `.cache/answers.jsonl`, so re-running an unchanged sift is free.
 Crosscheck keeps its own record in `.cache/pairs.jsonl`.
 
+## Crosscheck: every note against every other
+
+`sieve crosscheck` asks one question of every pair of notes: how does this note relate to that one?
+The answer is one of five: it makes the *same* point, *supports* it, *contradicts* it, shares only the *topic*, or is *unrelated*.
+It reports three things: pairs that contradict each other, pairs that make the same point twice, and notes that disagree with several others.
+Each note takes a turn as the anchor, so every pair is judged twice, once from each side, and a pair is listed on the average of the two.
+There is no index to build and nothing to embed.
+
+```text
+$ node sieve.cjs crosscheck --config examples/research-notes/crosscheck.config.json
+60 items, 1,770 pairs, each judged from both sides: 0 judgments remembered, 3,540 to ask in 240 requests, about $0.05
+contradicts 100%  2026-09-23  field-notes/2026-09.md:15  Four-bit models kept their calibration
+            99/100 2026-08-14  insights/edge-ai.md:21  Quantization quietly breaks confidence scores
+contradicts  99%  2026-09-16  field-notes/2026-09.md:50  The network did the work in a keyword spotter
+            98/99 2026-03-12  insights/edge-ai.md:35  Wake-word models live or die on the audio front end
+...
+same        100%  2026-09-11  insights/open-source.md:7  A maintenance-only fund was oversubscribed ten to one
+            99/100 2026-09-01  news/2026-09.md:17  Foundation launches maintenance-only fund (September 11)
+...
+30 contradictions, 3 to review, 17 pairs making the same point
+wrote examples/research-notes/reports/crosscheck-2026-09-27.md
+
+60 items, 240 requests (0 cached, 0 retries, 0 failed), $0.0486, 4.6 s, p50 212 ms
+```
+
+When the dates of a pair differ, the newer note is printed first, with the average beside it and the two sides under it.
+The full list goes to a Markdown report with links to each file and line.
+A run narrowed with `--kind`, `--since`, or `--changed` writes its own report, so it never replaces the full one from the same day.
+
+What each section is for:
+- **Contradictions.** One of the two notes is wrong, or the facts moved on and the older note is stale, or the newer note is a dissent worth keeping in sight.
+- **The same point, twice.** A note and the source it came from, or a duplicate. Link them or merge them.
+- **Notes that disagree with several others.** One note against many is the outlier in the folder, for better or worse.
+- **Worth a second look.** Pairs that average between 35% and 50%: mild tensions, mixed with one side misreading the other.
+
+**Why both sides.**
+One side alone is noisy.
+On a real notebook, 72 pairs had one side at 50% or more, and 16 had an average of 50% or more.
+The pairs that dropped out were mostly one note read as contradicting everything near it, such as a chip-funding story set against six model releases.
+
+**Measured on the demo (2026-09-27, Jev 1.13 via OpenRouter).**
+The crosscheck demo is the sample notebook plus sixteen field notes.
+Ten were written to disagree with one insight each, some without a single negating word.
+Six are decoys: notes that agree with an insight in negative wording, or share its topic and make another point.
+- Of the 10 intended pairs, 9 were listed. The tenth note was listed against two other notes that make the claim more directly.
+- 30 pairs were listed in all, because most insights have a brief or a news story behind them and the field note contradicts those too. Read one by one, 27 are real disagreements, 2 are debatable, and 1 is wrong.
+- No decoy was listed against the note it agrees with.
+- Without the field notes, the same notebook has 946 pairs and no contradiction at 50% from either side.
+- The 17 "same point" pairs are 16 insights matched to the brief or news story they came from, and one decoy that restates an insight.
+
+**Measured on a real notebook (the author's own; not included).**
+152 notes in six themes, compared within each theme: 3,890 pairs, 13 seconds, $0.20.
+Two of those notes had been filed by hand as counter-arguments.
+Ranked by how many contradictions each note was part of, they came first and third of 152.
+Of the 16 pairs listed, 15 involved one of those two notes.
+The other was a note saying a release had not appeared yet and a later note saying it had shipped.
+
+**What it costs.**
+Pairs grow with the square of the notebook, so crosscheck says what a run will cost before it spends anything, and does not start if that is over the budget (`--budget`, $1 unless the config says otherwise).
+The estimate is a guess at the bill, so the bill is watched too: a run stops when what it has been charged reaches the budget, keeps what it has judged, and exits with 1.
+`--dry-run` prints the plan and stops.
+
+| Notebook | Pairs | Estimate |
+|---|---|---|
+| 60 notes (the demo) | 1,770 | $0.05 |
+| 313 fables | 48,828 | $1.62 |
+| 687 notes, compared within 10 themes | 53,171 | $3.11 |
+| 1,222 notes, every pair | 746,031 | $44.74 |
+
+The estimate ran 3% and 9% above the real bill on the two runs measured.
+To keep a large notebook in hand, compare inside each label or kind (`--within label`), or narrow with `--kind` and `--since`.
+
+**It remembers.**
+Every judgment is stored in `.cache/pairs.jsonl` under the text of both notes and the wording of the question.
+A second run asks nothing.
+Adding one note to the 60-note demo asked 120 judgments in 64 requests: 1.4 seconds and a quarter of a cent.
+Editing a note forgets its pairs; moving it to another file does not.
+Two notes with the same words are asked about once.
+Each backend keeps its own memory.
+Delete the file to forget everything.
+
+**In a pull request.**
+`--changed` keeps only the pairs that touch a changed note, which answers "does this new note contradict anything already here?".
+A note counts as changed when its title or text was not in the file at that ref, so a section added to a long file is checked and the sections already in it are not.
+
+```yaml
+# .github/workflows/crosscheck.yml
+on: pull_request
+jobs:
+  crosscheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: git clone --depth 1 https://github.com/nothans/sieve /tmp/sieve
+      - run: node /tmp/sieve/sieve.cjs crosscheck --config sieve.config.json --changed origin/${{ github.base_ref }} --format github
+        env: { OPENROUTER_API_KEY: "${{ secrets.OPENROUTER_API_KEY }}" }
+```
+
+A contradiction is annotated on the changed note as a warning, and a second look as a notice.
+Add `--strict` to make a contradiction an error and exit with 1.
+
+**Where it falls short.**
+- It finds notes that state opposing things. A contradiction that is only implied, or that takes arithmetic to see, can pass unlisted.
+- A note that qualifies another ("true for flagship projects, not for the long tail") is not a contradiction, and was not listed as one in the demo, but the line between the two is a judgment.
+- Answers move a few points between runs, so a pair near 50% can be listed in one run and sit in "second look" in the next.
+- It is built for notes that make claims or report events.
+- Text that leaves the machine is the same as for any other command: every note compared is sent to the backend.
+
 ## More than search
 
 A typed question with a probability is a building block, not only a search box.
-Related, compare, and narrow work in the web UI and on the command line; lint and crosscheck are commands, for CI or a weekly pass; export is in the web UI.
+Related, compare, and narrow work in the web UI and on the command line; lint is a command for CI; export is in the web UI.
 
 ### Related: "more like this", as a stance
 
@@ -168,99 +313,6 @@ jobs:
 
 `--format json` gives the findings to a script instead.
 Rules that suit a notes repo: a figure without a source, a private phone number or address, a claim about "today" that will date badly, a draft marked as final.
-
-### Crosscheck: every note against every other
-
-`sieve crosscheck` asks the Related question of every pair of notes and reports three things: pairs that contradict each other, pairs that make the same point twice, and notes that disagree with several others.
-Each note takes a turn as the anchor, so every pair is judged twice, once from each side, and a pair is listed on the average of the two.
-There is no index to build and nothing to embed.
-
-```text
-$ node sieve.cjs crosscheck --config examples/research-notes/crosscheck.config.json
-60 items, 1,770 pairs, each judged from both sides: 0 judgments remembered, 3,540 to ask in 240 requests, about $0.05
-contradicts 100%  2026-09-23  field-notes/2026-09.md:15  Four-bit models kept their calibration
-            99/100 2026-08-14  insights/edge-ai.md:21  Quantization quietly breaks confidence scores
-contradicts  99%  2026-09-16  field-notes/2026-09.md:50  The network did the work in a keyword spotter
-            98/99 2026-03-12  insights/edge-ai.md:35  Wake-word models live or die on the audio front end
-...
-same        100%  2026-09-11  insights/open-source.md:7  A maintenance-only fund was oversubscribed ten to one
-            99/100 2026-09-01  news/2026-09.md:17  Foundation launches maintenance-only fund (September 11)
-...
-30 contradictions, 3 to review, 17 pairs making the same point
-wrote examples/research-notes/reports/crosscheck-2026-09-27.md
-
-60 items, 240 requests (0 cached, 0 retries, 0 failed), $0.0486, 4.6 s, p50 212 ms
-```
-
-The newer note of a pair is printed first, with the average beside it and the two sides under it.
-The full list goes to a Markdown report with links to each file and line.
-
-What each section is for:
-- **Contradictions.** One of the two notes is wrong, or the facts moved on and the older note is stale, or the newer note is a dissent worth keeping in sight.
-- **The same point, twice.** A note and the source it came from, or a duplicate. Link them or merge them.
-- **Notes that disagree with several others.** One note against many is the outlier in the folder, for better or worse.
-- **Worth a second look.** Pairs that average between 35% and 50%: mild tensions, mixed with one side misreading the other.
-
-**Why both sides.**
-One side alone is noisy.
-On a real notebook, 72 pairs had one side at 50% or more, and 16 had an average of 50% or more.
-The pairs that dropped out were mostly one note read as contradicting everything near it, such as a chip-funding story set against six model releases.
-
-**Measured on the demo (2026-09-27, Jev 1.13 via OpenRouter).**
-The crosscheck demo is the sample notebook plus sixteen field notes.
-Ten were written to disagree with one insight each, some without a single negating word.
-Six are decoys: notes that agree with an insight in negative wording, or share its topic and make another point.
-- Of the 10 intended pairs, 9 were listed. The tenth note was listed against two other notes that make the claim more directly.
-- 30 pairs were listed in all, because most insights have a brief or a news story behind them and the field note contradicts those too. Read one by one, 27 are real disagreements, 2 are debatable, and 1 is wrong.
-- No decoy was listed against the note it agrees with.
-- Without the field notes, the same notebook has 946 pairs and no contradiction at 50% from either side.
-- The 17 "same point" pairs are 16 insights matched to the brief or news story they came from, and one decoy that restates an insight.
-
-**Measured on a real notebook (the author's own; not included).**
-152 notes in six themes, compared within each theme: 3,890 pairs, 13 seconds, $0.20.
-Two of those notes had been filed by hand as counter-arguments.
-Ranked by how many contradictions each note was part of, they came first and third of 152.
-Of the 16 pairs listed, 15 involved one of those two notes.
-The other was a note saying a release had not appeared yet and a later note saying it had shipped.
-
-**What it costs.**
-Pairs grow with the square of the notebook, so crosscheck says what a run will cost before it spends anything, and stops if that is over the budget (`--budget`, $1 unless the config says otherwise).
-`--dry-run` prints the plan and stops.
-
-| Notebook | Pairs | Estimate |
-|---|---|---|
-| 60 notes (the demo) | 1,770 | $0.05 |
-| 313 fables | 48,828 | $1.62 |
-| 687 notes, compared within 10 themes | 53,171 | $3.11 |
-| 1,222 notes, every pair | 746,031 | $44.74 |
-
-The estimate ran 3% and 9% above the real bill on the two runs measured.
-To keep a large notebook in hand, compare inside each label or kind (`--within label`), or narrow with `--kind` and `--since`.
-
-**It remembers.**
-Every judgment is stored in `.cache/pairs.jsonl` under the text of both notes.
-A second run asks nothing.
-Adding one note to the 60-note demo asked 120 judgments in 64 requests: 1.4 seconds and a quarter of a cent.
-Editing a note forgets its pairs; moving it to another file does not.
-Each backend keeps its own memory.
-
-**In a pull request.**
-`--changed` keeps only the pairs that touch a changed file, which answers "does this new note contradict anything already here?".
-
-```yaml
-      - run: node /tmp/sieve/sieve.cjs crosscheck --config sieve.config.json --changed origin/${{ github.base_ref }} --format github
-        env: { OPENROUTER_API_KEY: "${{ secrets.OPENROUTER_API_KEY }}" }
-```
-
-A contradiction is annotated on the newer note as a warning.
-Add `--strict` to make it an error and exit with 1.
-
-**Where it falls short.**
-- It finds notes that state opposing things. A contradiction that is only implied, or that takes arithmetic to see, can pass unlisted.
-- A note that qualifies another ("true for flagship projects, not for the long tail") is not a contradiction, and was not listed as one in the demo, but the line between the two is a judgment.
-- Answers move a few points between runs, so a pair near 50% can be listed in one run and sit in "second look" in the next.
-- Like Related, it is built for notes that make claims or report events.
-- Text that leaves the machine is the same as for any other command: every note compared is sent to the backend.
 
 ### Export
 
@@ -387,7 +439,7 @@ Every field is optional, and crosscheck runs without the section.
 | Option | Meaning |
 |---|---|
 | `kinds` | The kinds to compare. Default: all of them. |
-| `within` | `"all"` (default) compares every pair; `"label"` and `"kind"` compare inside each label or kind, which cuts the pairs to a fraction. |
+| `within` | `"all"` (default) compares every pair; `"label"` and `"kind"` compare inside each label or kind, which cuts the pairs to a fraction. Under `"label"`, items without a label are compared with each other. |
 | `flag` | The average at which a pair is listed as a contradiction (default 0.5). |
 | `review` | The average at which a pair is listed for a second look (default 0.35). |
 | `same` | The average at which a pair is listed as making the same point (default 0.7). |
@@ -506,7 +558,7 @@ Set `JEV_MODEL` to `~typesafe/jev-latest` to follow new releases; the default pi
 npm test        # or: node --test "test/*.test.cjs"
 ```
 
-59 tests, no network: the corpus reader on every source mode (and ids that survive a re-index), config loading, lenses and presets, related and compare, backend profiles and settings, packing at sizes 1-99 with and without a shared anchor, the report, eval, and lint logic (thresholds, the escape-option check, rule scoping, GitHub annotations, `--changed` against a real git repo), crosscheck (both sides of every pair, the budget stop, the memory after a note is added, moved, or edited, a failed request, the report), the shipped examples, the Jev client's retries, cache, and per-minute cap, and the web server end to end against a fake backend: the cross-site guard, related, compare, narrowing a finished sift, stopping a sift when the page closes, catching a missing API key before anything runs, and the cost and time estimate.
+69 tests, no network: the corpus reader on every source mode (and ids that survive a re-index), config loading, lenses and presets, related and compare, backend profiles and settings, packing at sizes 1-99 with and without a shared anchor, the report, eval, and lint logic (thresholds, the escape-option check, rule scoping, GitHub annotations, `--changed` against a real git repo), crosscheck (both sides of every pair, the budget before and during a run, the memory after a note is added, moved, or edited, a damaged memory file, a failed request, `--changed` against a real git repo, the report), the shipped examples, the Jev client's retries, cache, and per-minute cap, and the web server end to end against a fake backend: the cross-site guard, related, compare, narrowing a finished sift, stopping a sift when the page closes, catching a missing API key before anything runs, and the cost and time estimate.
 
 ## Credits
 
