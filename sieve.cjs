@@ -69,10 +69,23 @@ function parseArgs(argv) {
     else if (t.startsWith('--')) {
       const key = t.slice(2);
       if (flags.has(key)) a[key] = true;
-      else a[key] = argv[++i];
+      else {
+        // A missing value would swallow the next flag: `--top --dry-run` must not run for real.
+        const value = argv[++i];
+        if (value === undefined || value.startsWith('--')) throw new Error(`${t} needs a value`);
+        a[key] = value;
+      }
     } else a._.push(t);
   }
   return a;
+}
+
+// How many rows to print: 15 unless --top says otherwise; 0 prints none.
+function rows(value) {
+  if (value === undefined) return 15;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < 0) throw new Error('--top is a whole number of rows, like 20');
+  return n;
 }
 
 function bar(p, width = 16) {
@@ -128,11 +141,11 @@ async function main() {
   }
 
   const profile = backends.getProfile(backends.readSettings(), a.backend);
-  const setup = backends.keyProblem(profile);
+  // A dry run sends nothing, so it needs no key.
+  const setup = cmd === 'crosscheck' && a['dry-run'] ? null : backends.keyProblem(profile);
   if (setup) throw new Error(setup);
   const jev = await backends.clientFor(profile, { cacheFile: a['no-cache'] ? null : CACHE });
-  process.stderr.write(`backend ${profile.id}: ${profile.model} at ${new URL(profile.baseUrl).host}${jev.servedRun ? ` (serving ${jev.servedRun})` : ''}
-`);
+  process.stderr.write(`backend ${profile.id}: ${profile.model} at ${new URL(profile.baseUrl).host}${jev.servedRun ? ` (serving ${jev.servedRun})` : ''}\n`);
   const t0 = Date.now();
   const pack = Number(a.pack) || profile.pack || DEFAULT_PACK;
   const concurrency = Number(a.concurrency) || profile.concurrency;
@@ -141,7 +154,7 @@ async function main() {
   const rank = async (items, p) => (await siftMany(jev, items, p.lenses, { pack, concurrency, context: p.context }))
     .map((r) => ({ item: r.item, answers: r.answers, value: rankOf(p, r.answers), label: r.answers ? p.label(r.answers) : r.error, group: r.answers && p.group ? p.group(r.answers) : null }))
     .sort((x, y) => y.value - x.value);
-  const top = Number(a.top) || 15;
+  const top = rows(a.top);
   const output = (results, n) => {
     if (!a.json && results.some((r) => r.group)) {
       const counts = {};
@@ -203,23 +216,35 @@ async function main() {
 
   if (cmd === 'crosscheck') {
     const cc = require('./lib/crosscheck.cjs');
-    const money = (x) => (x < 0.01 && x > 0 ? 'under $0.01' : `about $${x.toFixed(2)}`);
+    const format = a.json ? 'json' : a.format || 'text';
+    if (!['text', 'json', 'github'].includes(format)) throw new Error('--format is text, json, or github');
+    const count = (k) => k.toLocaleString('en-US');
     const res = await cc.crosscheck(jev, filterItems(corpus, a), config, {
       within: a.within, budget: a.budget, changed: a.changed, dryRun: a['dry-run'], pack, concurrency,
       memoryFile: a['no-cache'] ? null : PAIRS,
-      onPlan: (p) => process.stderr.write(`${p.items} items, ${p.pairs.toLocaleString('en-US')} pairs${p.within === 'all' ? '' : ` within each ${p.within}`}, each judged from both sides: ${p.remembered.toLocaleString('en-US')} judgments remembered, ${p.estimate.judgments.toLocaleString('en-US')} to ask in ${p.estimate.requests.toLocaleString('en-US')} requests, ${p.estimate.cost === 0 ? 'no charge' : money(p.estimate.cost)}${p.estimate.priced ? '' : " at Jev's OpenRouter price"}\n`),
-      onProgress: (done, total) => { if (total >= 200 && (done % 200 === 0 || done === total)) process.stderr.write(`  ${done.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} requests\n`); },
+      onPlan: (p) => process.stderr.write(`${p.items} items, ${count(p.pairs)} pairs${p.within === 'all' ? '' : ` within each ${p.within}`}${p.changed ? ` that touch a changed note (${p.changed.length} file${p.changed.length === 1 ? '' : 's'})` : ''}, each judged from both sides: ${count(p.remembered)} judgments remembered, ${count(p.estimate.judgments)} to ask in ${count(p.estimate.requests)} requests, ${p.estimate.cost === 0 ? 'no charge' : `about ${cc.usd(p.estimate.cost)}`}${p.estimate.priced ? '' : " at Jev's OpenRouter price"}\n`),
+      onProgress: (done, total) => { if (total >= 200 && (done % 200 === 0 || done === total)) process.stderr.write(`  ${count(done)} of ${count(total)} requests\n`); },
     });
     if (res.dryRun) {
-      if (res.plan.overBudget) process.stderr.write(`That is over the $${res.plan.budget} budget, so a run would stop before spending. Narrow it with --kind, --since, or --within, or allow it with --budget.\n`);
+      if (format === 'json') console.log(JSON.stringify({ dryRun: true, settings: res.settings, plan: res.plan }, null, 2));
+      if (res.plan.overBudget) process.stderr.write(`That is over the ${cc.usd(res.plan.budget)} budget, so a run would stop before spending. Narrow it with --kind, --since, or --within, or allow it with --budget.\n`);
       return;
     }
-    const format = a.json ? 'json' : a.format || 'text';
+    // A narrowed run gets its own report, so it never replaces the full one written that day.
+    const name = [a.changed && 'changed', a.kind, a.since && `since-${a.since}`].filter(Boolean).join('-');
+    const file = cc.writeReport(res, config, { name });
     const bare = (it) => ({ ...it, text: undefined });
-    const rows = (list) => list.map((f) => ({ relation: f.relation, p: f.p, sides: f.sides, mean: f.mean, a: bare(f.a), b: bare(f.b) }));
-    if (format === 'json') console.log(JSON.stringify({ settings: res.settings, plan: res.plan, stats: res.stats, contradictions: rows(res.contradictions), review: rows(res.review), same: rows(res.same), contested: res.contested.map((c) => ({ item: bare(c.item), pairs: c.pairs })), unjudged: res.unjudged }, null, 2));
-    else if (format === 'github') for (const line of cc.githubAnnotations(res, config.root, { strict: a.strict })) console.log(line);
-    else {
+    const listed = (list) => list.map((f) => ({ relation: f.relation, p: f.p, sides: f.sides, mean: f.mean, a: bare(f.a), b: bare(f.b) }));
+    if (format === 'json') {
+      console.log(JSON.stringify({
+        settings: res.settings, plan: res.plan, stats: res.stats, changed: res.changed, stopped: res.stopped, report: file,
+        contradictions: listed(res.contradictions), review: listed(res.review), same: listed(res.same),
+        contested: res.contested.map((c) => ({ item: bare(c.item), pairs: c.pairs })),
+        unjudged: res.unjudged, errors: res.errors.map((e) => ({ anchor: bare(e.anchor), item: bare(e.item), error: e.error })),
+      }, null, 2));
+    } else if (format === 'github') {
+      for (const line of cc.githubAnnotations(res, config.root, { strict: a.strict })) console.log(line);
+    } else {
       const show = (word, list) => {
         for (const f of list.slice(0, top)) {
           console.log(`${word.padEnd(11)} ${String(Math.round(f.p * 100)).padStart(3)}%  ${f.a.date || '          '}  ${f.a.path}:${f.a.line}  ${f.a.title.slice(0, 80)}`);
@@ -230,13 +255,13 @@ async function main() {
       show('contradicts', res.contradictions);
       show('review', res.review);
       show('same', res.same);
-      const file = cc.writeReport(res, config);
-      const count = (k, one, many) => `${k} ${k === 1 ? one : many}`;
-      console.log(`\n${count(res.contradictions.length, 'contradiction', 'contradictions')}, ${res.review.length} to review, ${count(res.same.length, 'pair', 'pairs')} making the same point${res.unjudged ? `, ${count(res.unjudged, 'pair', 'pairs')} not judged (a request failed; run again)` : ''}`);
-      console.log(`wrote ${path.relative(process.cwd(), file)}`);
+      const some = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+      console.log(`\n${some(res.contradictions.length, 'contradiction', 'contradictions')}, ${res.review.length} to review, ${some(res.same.length, 'pair', 'pairs')} making the same point`);
+      if (res.unjudged) console.log(cc.unjudgedLine(res));
     }
+    (format === 'text' ? console.log : (line) => process.stderr.write(`${line}\n`))(`wrote ${path.relative(process.cwd(), file)}`);
     report(jev, t0, res.plan.items);
-    if (res.unjudged || (a.strict && res.contradictions.length)) process.exitCode = 1;
+    if (res.unjudged || res.stopped || (a.strict && res.contradictions.length)) process.exitCode = 1;
     return;
   }
 
